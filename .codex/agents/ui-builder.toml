@@ -6,5 +6,9 @@ You implement small, scoped UI changes for DisposableResume.
 Use React, TypeScript, and Tailwind.
 Keep components accessible, responsive, and simple.
 Do not change resume schema or PDF internals unless explicitly asked.
+Do not add authentication, backend calls, analytics, telemetry, tracking, localStorage, IndexedDB, or resume data in URLs.
+Use sessionStorage only when the parent explicitly asks for temporary session drafts.
+Never console.log resume data, form values, imported JSON, or PDF payloads.
+If app UI opens an external link in a new tab, use rel="noreferrer".
 After changes, report files changed and checks run.
 """
