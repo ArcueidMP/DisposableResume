@@ -2,11 +2,10 @@
 
 DisposableResume is a zero-retention, browser-only resume builder.
 
-Status: MVP foundation is in progress. PR2 adds the core resume builder:
-a Zod resume schema, fake-only default data, an in-memory Zustand store, editors
-for basics, work, education, projects, and skills, template selection, a simple
-local preview, and browser-side JSON import/export. Session drafts and browser
-PDF export will be implemented in later PRs.
+Status: PR3 adds the browser-side PDF export path for the three MVP templates:
+Classic ATS, Modern ATS, and Chinese Clean. Resume data remains local to the
+browser runtime; PDF generation uses in-browser code and does not require a
+backend renderer.
 
 ## Product Goals
 
@@ -30,12 +29,38 @@ PDF export will be implemented in later PRs.
 - JSON export/import.
 - Clear local data control.
 
+## PDF Export
+
+PDF export runs in the browser with `@react-pdf/renderer`. The app does not send
+resume contents to a backend service for rendering.
+
+The MVP includes three PDF templates:
+
+- Classic ATS.
+- Modern ATS.
+- Chinese Clean.
+
+Downloaded PDF and JSON filenames use conservative app-generated names such as
+`disposable-resume.pdf` and `disposable-resume.json`. Filename cleanup is for
+download compatibility only and does not change resume contents.
+
+## Font Limitations
+
+The app does not load remote fonts, CDN assets, tracking images, or external
+rendering resources. Until an approved local CJK font strategy is added, Chinese
+text rendering depends on the PDF renderer and browser environment and may have
+limited glyph coverage in exported PDFs. Do not add bundled font files, emoji
+source registration, remote font requests, or font registration APIs without
+prior approval.
+
 ## Roadmap Status
 
 - Done in PR2: resume schema, fake defaults, in-memory store, basics/work/
   education/projects/skills editors, template selection, JSON import/export,
   clear local data control, and preview wiring.
-- Next: optional session drafts and browser-side PDF export.
+- Added in PR3: browser-side PDF export for Classic ATS, Modern ATS, and
+  Chinese Clean.
+- Next: optional session drafts using app-owned `sessionStorage` keys only.
 
 ## Non-Goals For The MVP
 
