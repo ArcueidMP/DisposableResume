@@ -11,6 +11,8 @@ import {
   Trash2,
 } from 'lucide-react'
 import { createDefaultResume, createEmptyResume } from './resume/defaults'
+import { exportResumePdf } from './pdf/exportResumePdf'
+import { createJsonFilename } from './pdf/filenames'
 import { resumeTemplateOptions } from './resume/schema'
 import type {
   Resume,
@@ -34,12 +36,13 @@ const resumeSections = [
 
 type ResumeSection = (typeof resumeSections)[number]
 type ImportStatus = { kind: 'error' | 'success'; text: string } | null
+type ExportStatus = { kind: 'error' | 'success'; text: string } | null
 
 const inputClass =
   'rounded-md border border-[#cbd6c5] px-3 py-2 text-[#121612] outline-none transition focus:border-[#244d34] focus:ring-2 focus:ring-[#bed2c4]'
 const textAreaClass = `${inputClass} min-h-24 resize-y`
 const secondaryButtonClass =
-  'inline-flex items-center justify-center gap-2 rounded-md border border-[#d8ded2] px-3 py-2 text-sm font-medium text-[#354238] transition hover:border-[#91ad98] hover:bg-[#f3f7f1]'
+  'inline-flex items-center justify-center gap-2 rounded-md border border-[#d8ded2] px-3 py-2 text-sm font-medium text-[#354238] transition hover:border-[#91ad98] hover:bg-[#f3f7f1] disabled:cursor-not-allowed disabled:opacity-60'
 const dangerButtonClass =
   'inline-flex items-center justify-center gap-2 rounded-md border border-[#ecc2bd] px-3 py-2 text-sm font-medium text-[#6f2b23] transition hover:border-[#ce8d85] hover:bg-[#fff4f2]'
 const sectionButtonClass =
@@ -614,6 +617,8 @@ function App() {
   const [linksDraft, setLinksDraft] = useState(formatLinks(resume.basics.links))
   const [skillsDraft, setSkillsDraft] = useState(resume.skills.join(', '))
   const [importStatus, setImportStatus] = useState<ImportStatus>(null)
+  const [exportStatus, setExportStatus] = useState<ExportStatus>(null)
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
 
   const selectedTemplateLabel = getTemplateLabel(resume.template)
 
@@ -640,11 +645,35 @@ function App() {
     const link = document.createElement('a')
 
     link.href = objectUrl
-    link.download = 'disposable-resume.json'
+    link.download = createJsonFilename()
     document.body.append(link)
     link.click()
     link.remove()
     URL.revokeObjectURL(objectUrl)
+  }
+
+  async function handleExportPdf() {
+    if (isExportingPdf) {
+      return
+    }
+
+    setExportStatus(null)
+    setIsExportingPdf(true)
+
+    try {
+      await exportResumePdf(resume)
+      setExportStatus({
+        kind: 'success',
+        text: 'Generated PDF locally.',
+      })
+    } catch {
+      setExportStatus({
+        kind: 'error',
+        text: 'PDF export failed. Try again in this browser.',
+      })
+    } finally {
+      setIsExportingPdf(false)
+    }
   }
 
   async function handleImportJson(event: ChangeEvent<HTMLInputElement>) {
@@ -688,6 +717,7 @@ function App() {
     clearResume()
     syncDrafts(nextResume)
     setImportStatus(null)
+    setExportStatus(null)
   }
 
   function handleReset() {
@@ -696,6 +726,7 @@ function App() {
     resetToDefaults()
     syncDrafts(nextResume)
     setImportStatus(null)
+    setExportStatus(null)
   }
 
   function renderEditor() {
@@ -816,6 +847,15 @@ function App() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     className={secondaryButtonClass}
+                    disabled={isExportingPdf}
+                    onClick={handleExportPdf}
+                    type="button"
+                  >
+                    <Download aria-hidden="true" size={16} />
+                    {isExportingPdf ? 'Preparing PDF' : 'Export PDF'}
+                  </button>
+                  <button
+                    className={secondaryButtonClass}
                     onClick={handleExportJson}
                     type="button"
                   >
@@ -866,6 +906,18 @@ function App() {
                   role={importStatus.kind === 'error' ? 'alert' : 'status'}
                 >
                   {importStatus.text}
+                </p>
+              ) : null}
+              {exportStatus ? (
+                <p
+                  className={
+                    exportStatus.kind === 'error'
+                      ? 'rounded-md border border-[#ecc2bd] bg-[#fff4f2] px-3 py-2 text-sm text-[#6f2b23]'
+                      : 'rounded-md border border-[#bed2c4] bg-[#eff7f1] px-3 py-2 text-sm text-[#25402d]'
+                  }
+                  role={exportStatus.kind === 'error' ? 'alert' : 'status'}
+                >
+                  {exportStatus.text}
                 </p>
               ) : null}
             </div>

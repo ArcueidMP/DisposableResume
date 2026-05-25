@@ -14,6 +14,20 @@ const forbiddenFragments = [
   ['XMLHttp', 'Request'].join(''),
   ['console', '.'].join(''),
   ['persist', '('].join(''),
+  ['Font', '.register'].join(''),
+  ['register', 'EmojiSource'].join(''),
+  ['PDF', 'DownloadLink'].join(''),
+  ['Blob', 'Provider'].join(''),
+  ['render', 'ToFile'].join(''),
+  ['render', 'ToStream'].join(''),
+  ['render', 'ToBuffer'].join(''),
+  ['Web', 'Socket'].join(''),
+  ['Event', 'Source'].join(''),
+  ['document', '.cookie'].join(''),
+  ['URL', 'SearchParams'].join(''),
+  ['location', '.search'].join(''),
+  ['history', '.pushState'].join(''),
+  ['history', '.replaceState'].join(''),
 ]
 
 function collectSourceFiles(directory: string): string[] {

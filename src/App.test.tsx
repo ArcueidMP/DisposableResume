@@ -1,15 +1,25 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('./pdf/exportResumePdf', () => ({
+  exportResumePdf: vi.fn(),
+}))
+
 import App from './App'
+import { exportResumePdf } from './pdf/exportResumePdf'
 import { createDefaultResume } from './resume/defaults'
 import { useResumeStore } from './store/resume-store'
 
 describe('App', () => {
+  const mockedExportResumePdf = vi.mocked(exportResumePdf)
+
   beforeEach(() => {
     useResumeStore.getState().resetToDefaults()
+    mockedExportResumePdf.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
+    mockedExportResumePdf.mockClear()
     vi.restoreAllMocks()
   })
 
@@ -57,6 +67,17 @@ describe('App', () => {
     expect(screen.getByText('Schema | Store | UI')).toBeInTheDocument()
     expect(modernTemplate).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('Preview style: Modern ATS')).toBeInTheDocument()
+  })
+
+  it('renders the PDF export control beside local export tools', () => {
+    render(<App />)
+
+    expect(
+      screen.getByRole('button', { name: 'Export PDF' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Export JSON' }),
+    ).toBeInTheDocument()
   })
 
   it('adds, updates, and removes a work item from the UI', () => {
@@ -122,6 +143,29 @@ describe('App', () => {
       template: 'classic-ats',
     })
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:resume-json')
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('exports the current in-memory resume as a browser-side PDF', async () => {
+    render(<App />)
+
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'Fixture PDF Person' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Chinese Clean' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }))
+
+    await waitFor(() => {
+      expect(mockedExportResumePdf).toHaveBeenCalledTimes(1)
+    })
+
+    expect(mockedExportResumePdf.mock.calls[0]?.[0]).toMatchObject({
+      basics: { name: 'Fixture PDF Person' },
+      template: 'chinese-clean',
+    })
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Generated PDF locally.',
+    )
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
