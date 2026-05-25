@@ -2,8 +2,10 @@
 
 DisposableResume is a zero-retention, browser-only resume builder.
 
-Status: MVP foundation is in progress. The current app shell establishes the
-client-only product surface; the full resume editor, import/export, and browser
+Status: MVP foundation is in progress. PR2 adds the core resume builder:
+a Zod resume schema, fake-only default data, an in-memory Zustand store, editors
+for basics, work, education, projects, and skills, template selection, a simple
+local preview, and browser-side JSON import/export. Session drafts and browser
 PDF export will be implemented in later PRs.
 
 ## Product Goals
@@ -27,6 +29,13 @@ PDF export will be implemented in later PRs.
 - Browser-side PDF export.
 - JSON export/import.
 - Clear local data control.
+
+## Roadmap Status
+
+- Done in PR2: resume schema, fake defaults, in-memory store, basics/work/
+  education/projects/skills editors, template selection, JSON import/export,
+  clear local data control, and preview wiring.
+- Next: optional session drafts and browser-side PDF export.
 
 ## Non-Goals For The MVP
 
