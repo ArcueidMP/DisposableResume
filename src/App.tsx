@@ -37,6 +37,28 @@ const resumeSections = [
 type ResumeSection = (typeof resumeSections)[number]
 type ImportStatus = { kind: 'error' | 'success'; text: string } | null
 type ExportStatus = { kind: 'error' | 'success'; text: string } | null
+type PreviewSkillLayout = 'inline' | 'pills'
+type PreviewTemplateStyle = {
+  body: string
+  contact: string
+  content: string
+  eyebrow: string
+  header: string
+  item: string
+  itemTitle: string
+  layout: string
+  links: string
+  list: string
+  muted: string
+  name: string
+  section: string
+  sectionTitle: string
+  shell: string
+  skillItem: string
+  skillLayout: PreviewSkillLayout
+  skillList: string
+  skillSeparator: string
+}
 
 const inputClass =
   'rounded-md border border-[#cbd6c5] px-3 py-2 text-[#121612] outline-none transition focus:border-[#244d34] focus:ring-2 focus:ring-[#bed2c4]'
@@ -47,6 +69,79 @@ const dangerButtonClass =
   'inline-flex items-center justify-center gap-2 rounded-md border border-[#ecc2bd] px-3 py-2 text-sm font-medium text-[#6f2b23] transition hover:border-[#ce8d85] hover:bg-[#fff4f2]'
 const sectionButtonClass =
   'rounded-md border border-[#d8ded2] px-3 py-2 text-left text-sm text-[#354238] transition hover:border-[#91ad98] hover:bg-[#f3f7f1] aria-pressed:border-[#244d34] aria-pressed:bg-[#e4f3e8] aria-pressed:text-[#163221]'
+
+const previewTemplateStyles = {
+  'classic-ats': {
+    body: 'text-sm leading-6 text-[#2d312d]',
+    contact: 'mt-2 text-sm leading-6 text-[#303530]',
+    content: 'mt-7 grid gap-5',
+    eyebrow: 'text-xs font-semibold uppercase text-[#5e655e]',
+    header: 'border-b border-[#a9afa7] pb-4 text-center',
+    item: 'mt-3 text-sm text-[#303530]',
+    itemTitle: 'font-bold text-[#111411]',
+    layout: 'classic-centered',
+    links: 'mt-2 text-sm leading-6 text-[#303530]',
+    list: 'mt-2 list-disc space-y-1 pl-5',
+    muted: 'mt-2 text-sm text-[#6a7068]',
+    name: 'mt-4 text-2xl font-bold text-[#111411]',
+    section: '',
+    sectionTitle:
+      'border-b border-[#c4c9c0] pb-1 text-xs font-bold uppercase text-[#111411]',
+    shell:
+      'mt-5 min-h-96 rounded-md border border-[#c7cdc4] bg-white p-6 font-serif shadow-sm',
+    skillItem: '',
+    skillLayout: 'inline',
+    skillList: 'mt-2 text-sm leading-6 text-[#2d312d]',
+    skillSeparator: ' | ',
+  },
+  'modern-ats': {
+    body: 'text-sm leading-6 text-[#253642]',
+    contact: 'mt-2 text-sm leading-6 text-[#304454]',
+    content: 'mt-5 grid gap-4',
+    eyebrow: 'text-xs font-semibold uppercase text-[#2f6f73]',
+    header:
+      'border-l-4 border-[#2f6f73] bg-white py-4 pl-4 pr-3 text-left shadow-sm',
+    item: 'mt-3 text-sm text-[#304454]',
+    itemTitle: 'font-semibold text-[#14212a]',
+    layout: 'modern-accented',
+    links: 'mt-2 text-sm leading-6 text-[#304454]',
+    list: 'mt-2 list-disc space-y-1 pl-5',
+    muted: 'mt-2 text-sm text-[#657684]',
+    name: 'mt-3 text-2xl font-semibold text-[#14212a]',
+    section:
+      'rounded-md border border-[#d6e0e7] bg-white px-4 py-3 shadow-sm',
+    sectionTitle: 'text-xs font-bold uppercase text-[#2f6f73]',
+    shell:
+      'mt-5 min-h-96 rounded-lg border border-[#b7c7d6] bg-[#f8fbff] p-5 font-sans shadow-sm',
+    skillItem:
+      'rounded-md border border-[#c9dde0] bg-[#edf7f8] px-2.5 py-1 text-xs font-medium text-[#1f565a]',
+    skillLayout: 'pills',
+    skillList: 'mt-3 flex flex-wrap gap-2',
+    skillSeparator: '',
+  },
+  'chinese-clean': {
+    body: 'text-sm leading-7 text-[#2e2a27]',
+    contact: 'mt-2 text-sm leading-6 text-[#4b4540]',
+    content: 'mt-8 grid gap-6',
+    eyebrow: 'text-xs font-semibold uppercase text-[#8a4b3c]',
+    header: 'border-b border-[#d8d1c5] pb-5 text-left',
+    item: 'mt-3 text-sm text-[#4b4540]',
+    itemTitle: 'font-medium text-[#191715]',
+    layout: 'chinese-clean',
+    links: 'mt-2 text-sm leading-6 text-[#4b4540]',
+    list: 'mt-2 list-disc space-y-1 pl-5 marker:text-[#8a4b3c]',
+    muted: 'mt-2 text-sm text-[#756e66]',
+    name: 'mt-3 text-2xl font-medium text-[#191715]',
+    section: 'border-b border-[#ebe5dc] pb-5 last:border-b-0 last:pb-0',
+    sectionTitle: 'text-xs font-semibold uppercase text-[#8a4b3c]',
+    shell:
+      'mt-5 min-h-96 rounded-lg border border-[#ded8d2] bg-[#fffdf8] p-7 font-sans shadow-sm',
+    skillItem: '',
+    skillLayout: 'inline',
+    skillList: 'mt-2 text-sm leading-7 text-[#2e2a27]',
+    skillSeparator: ' / ',
+  },
+} satisfies Record<ResumeTemplate, PreviewTemplateStyle>
 
 function formatLinks(links: ResumeLink[]) {
   return links.map((link) => `${link.label} | ${link.url}`).join('\n')
@@ -470,56 +565,89 @@ function SkillsEditor({
   )
 }
 
-function Preview({ resume, selectedTemplateLabel }: { resume: Resume; selectedTemplateLabel: string }) {
+function PreviewSkills({
+  skills,
+  styles,
+}: {
+  skills: string[]
+  styles: PreviewTemplateStyle
+}) {
+  if (skills.length === 0) {
+    return <p className={styles.muted}>No skills</p>
+  }
+
+  if (styles.skillLayout === 'pills') {
+    return (
+      <ul className={styles.skillList} data-preview-skills-layout="pills">
+        {skills.map((skill, skillIndex) => (
+          <li className={styles.skillItem} key={`skill-${skillIndex}`}>
+            {skill}
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  return (
+    <p className={styles.skillList} data-preview-skills-layout="inline">
+      {skills.join(styles.skillSeparator)}
+    </p>
+  )
+}
+
+function Preview({
+  resume,
+  selectedTemplateLabel,
+}: {
+  resume: Resume
+  selectedTemplateLabel: string
+}) {
   const basicsContact = contactLine(resume.basics)
+  const styles = previewTemplateStyles[resume.template]
 
   return (
     <article
       aria-label="Resume preview shell"
-      className="mt-5 min-h-96 rounded-lg border border-[#d8ded2] bg-[#fbfbf8] p-5 shadow-sm"
+      className={styles.shell}
+      data-preview-layout={styles.layout}
+      data-preview-template={resume.template}
     >
-      <p className="text-sm text-[#617064]">
-        Preview style: {selectedTemplateLabel}
-      </p>
-      <h3 className="mt-5 text-2xl font-semibold text-[#121612]">
-        {resume.basics.name || 'Untitled resume'}
-      </h3>
-      {basicsContact ? (
-        <p className="mt-2 text-sm leading-6 text-[#354238]">{basicsContact}</p>
-      ) : null}
-      {resume.basics.links.length > 0 ? (
-        <p className="mt-2 text-sm leading-6 text-[#354238]">
-          {resume.basics.links
-            .map((link) => `${link.label}: ${link.url}`)
-            .join(' | ')}
-        </p>
-      ) : null}
-
-      <div className="mt-7 grid gap-5">
-        <section>
-          <h4 className="text-sm font-semibold uppercase text-[#244d34]">
-            Skills
-          </h4>
-          <p className="mt-2 text-sm leading-6 text-[#354238]">
-            {resume.skills.length > 0 ? resume.skills.join(' | ') : 'No skills'}
+      <header className={styles.header} data-preview-header="true">
+        <p className={styles.eyebrow}>Preview style: {selectedTemplateLabel}</p>
+        <h3 className={styles.name}>
+          {resume.basics.name || 'Untitled resume'}
+        </h3>
+        {basicsContact ? <p className={styles.contact}>{basicsContact}</p> : null}
+        {resume.basics.links.length > 0 ? (
+          <p className={styles.links}>
+            {resume.basics.links
+              .map((link) => `${link.label}: ${link.url}`)
+              .join(' | ')}
           </p>
+        ) : null}
+      </header>
+
+      <div className={styles.content}>
+        <section className={styles.section}>
+          <h4 className={styles.sectionTitle}>Skills</h4>
+          <PreviewSkills skills={resume.skills} styles={styles} />
         </section>
 
-        <section>
-          <h4 className="text-sm font-semibold uppercase text-[#244d34]">Work</h4>
+        <section className={styles.section}>
+          <h4 className={styles.sectionTitle}>Work</h4>
           {resume.work.length > 0 ? (
             resume.work.map((item) => (
-              <div className="mt-2 text-sm text-[#354238]" key={item.id}>
-                <p className="font-medium text-[#121612]">
+              <div className={styles.item} key={item.id}>
+                <p className={styles.itemTitle}>
                   {[item.role, item.organization].filter(Boolean).join(', ') ||
                     'Untitled work item'}
                 </p>
-                <p>
+                <p className={styles.body}>
                   {[item.startDate, item.endDate].filter(Boolean).join(' - ')}
                   {item.location ? ` | ${item.location}` : ''}
                 </p>
                 {item.highlights.length > 0 ? (
-                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <ul className={styles.list}>
                     {item.highlights.map((highlight, highlightIndex) => (
                       <li key={`${item.id}-highlight-${highlightIndex}`}>
                         {highlight}
@@ -530,27 +658,25 @@ function Preview({ resume, selectedTemplateLabel }: { resume: Resume; selectedTe
               </div>
             ))
           ) : (
-            <p className="mt-2 text-sm text-[#617064]">No work entries</p>
+            <p className={styles.muted}>No work entries</p>
           )}
         </section>
 
-        <section>
-          <h4 className="text-sm font-semibold uppercase text-[#244d34]">
-            Education
-          </h4>
+        <section className={styles.section}>
+          <h4 className={styles.sectionTitle}>Education</h4>
           {resume.education.length > 0 ? (
             resume.education.map((item) => (
-              <div className="mt-2 text-sm text-[#354238]" key={item.id}>
-                <p className="font-medium text-[#121612]">
+              <div className={styles.item} key={item.id}>
+                <p className={styles.itemTitle}>
                   {[item.credential, item.school].filter(Boolean).join(', ') ||
                     'Untitled education item'}
                 </p>
-                <p>
+                <p className={styles.body}>
                   {[item.startDate, item.endDate].filter(Boolean).join(' - ')}
                   {item.location ? ` | ${item.location}` : ''}
                 </p>
                 {item.details.length > 0 ? (
-                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <ul className={styles.list}>
                     {item.details.map((detail, detailIndex) => (
                       <li key={`${item.id}-detail-${detailIndex}`}>{detail}</li>
                     ))}
@@ -559,23 +685,23 @@ function Preview({ resume, selectedTemplateLabel }: { resume: Resume; selectedTe
               </div>
             ))
           ) : (
-            <p className="mt-2 text-sm text-[#617064]">No education entries</p>
+            <p className={styles.muted}>No education entries</p>
           )}
         </section>
 
-        <section>
-          <h4 className="text-sm font-semibold uppercase text-[#244d34]">
-            Projects
-          </h4>
+        <section className={styles.section}>
+          <h4 className={styles.sectionTitle}>Projects</h4>
           {resume.projects.length > 0 ? (
             resume.projects.map((item) => (
-              <div className="mt-2 text-sm text-[#354238]" key={item.id}>
-                <p className="font-medium text-[#121612]">
+              <div className={styles.item} key={item.id}>
+                <p className={styles.itemTitle}>
                   {item.name || 'Untitled project'}
                 </p>
-                {item.description ? <p>{item.description}</p> : null}
+                {item.description ? (
+                  <p className={styles.body}>{item.description}</p>
+                ) : null}
                 {item.highlights.length > 0 ? (
-                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <ul className={styles.list}>
                     {item.highlights.map((highlight, highlightIndex) => (
                       <li key={`${item.id}-highlight-${highlightIndex}`}>
                         {highlight}
@@ -586,7 +712,7 @@ function Preview({ resume, selectedTemplateLabel }: { resume: Resume; selectedTe
               </div>
             ))
           ) : (
-            <p className="mt-2 text-sm text-[#617064]">No project entries</p>
+            <p className={styles.muted}>No project entries</p>
           )}
         </section>
       </div>
