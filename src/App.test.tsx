@@ -10,6 +10,18 @@ import { exportResumePdf } from './pdf/exportResumePdf'
 import { createDefaultResume } from './resume/defaults'
 import { useResumeStore } from './store/resume-store'
 
+function getPreviewParts() {
+  const preview = screen.getByLabelText('Resume preview shell')
+  const header = preview.querySelector('[data-preview-header="true"]')
+  const skills = preview.querySelector('[data-preview-skills-layout]')
+
+  if (!(header instanceof HTMLElement) || !(skills instanceof HTMLElement)) {
+    throw new Error('Expected the live preview to render testable parts.')
+  }
+
+  return { header, preview, skills }
+}
+
 describe('App', () => {
   const mockedExportResumePdf = vi.mocked(exportResumePdf)
 
@@ -64,9 +76,76 @@ describe('App', () => {
         'fixture.person@example.invalid | +0 111 222 3333 | Fixture City, ZZ',
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText('Schema | Store | UI')).toBeInTheDocument()
+    expect(screen.getByText('Schema')).toBeInTheDocument()
+    expect(screen.getByText('Store')).toBeInTheDocument()
+    expect(screen.getByText('UI')).toBeInTheDocument()
+    expect(getPreviewParts().preview).toHaveAttribute(
+      'data-preview-template',
+      'modern-ats',
+    )
     expect(modernTemplate).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('Preview style: Modern ATS')).toBeInTheDocument()
+  })
+
+  it('changes the live preview styling when templates switch', () => {
+    render(<App />)
+
+    let previewParts = getPreviewParts()
+
+    expect(previewParts.preview).toHaveAttribute(
+      'data-preview-template',
+      'classic-ats',
+    )
+    expect(previewParts.preview).toHaveAttribute(
+      'data-preview-layout',
+      'classic-centered',
+    )
+    expect(previewParts.preview).toHaveClass('font-serif', 'p-6')
+    expect(previewParts.header).toHaveClass('text-center')
+    expect(previewParts.skills).toHaveAttribute(
+      'data-preview-skills-layout',
+      'inline',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Modern ATS' }))
+    previewParts = getPreviewParts()
+
+    expect(previewParts.preview).toHaveAttribute(
+      'data-preview-template',
+      'modern-ats',
+    )
+    expect(previewParts.preview).toHaveAttribute(
+      'data-preview-layout',
+      'modern-accented',
+    )
+    expect(previewParts.preview).toHaveClass('font-sans', 'p-5')
+    expect(previewParts.header).toHaveClass('border-l-4', 'text-left')
+    expect(previewParts.skills).toHaveAttribute(
+      'data-preview-skills-layout',
+      'pills',
+    )
+    expect(previewParts.skills).toHaveClass('flex', 'flex-wrap')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chinese Clean' }))
+    previewParts = getPreviewParts()
+
+    expect(previewParts.preview).toHaveAttribute(
+      'data-preview-template',
+      'chinese-clean',
+    )
+    expect(previewParts.preview).toHaveAttribute(
+      'data-preview-layout',
+      'chinese-clean',
+    )
+    expect(previewParts.preview).toHaveClass('font-sans', 'p-7')
+    expect(previewParts.header).toHaveClass('border-b', 'text-left')
+    expect(previewParts.skills).toHaveAttribute(
+      'data-preview-skills-layout',
+      'inline',
+    )
+    expect(previewParts.skills).toHaveTextContent(
+      'TypeScript / React / Privacy UX',
+    )
   })
 
   it('renders the PDF export control beside local export tools', () => {
