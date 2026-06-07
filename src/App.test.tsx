@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./pdf/exportResumePdf', () => ({
@@ -226,13 +226,27 @@ describe('App', () => {
   })
 
   it('exports the current in-memory resume as a browser-side PDF', async () => {
+    let resolveExport: () => void = () => undefined
+    const exportPromise = new Promise<void>((resolve) => {
+      resolveExport = resolve
+    })
+
+    mockedExportResumePdf.mockReturnValueOnce(exportPromise)
+
     render(<App />)
 
     fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'Fixture PDF Person' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Chinese Clean' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }))
+    const pdfButton = screen.getByRole('button', { name: 'Export PDF' })
+
+    fireEvent.click(pdfButton)
+
+    await waitFor(() => {
+      expect(pdfButton).toHaveTextContent('Preparing PDF')
+    })
+    expect(pdfButton).toBeDisabled()
 
     await waitFor(() => {
       expect(mockedExportResumePdf).toHaveBeenCalledTimes(1)
@@ -242,9 +256,41 @@ describe('App', () => {
       basics: { name: 'Fixture PDF Person' },
       template: 'chinese-clean',
     })
+
+    await act(async () => {
+      resolveExport()
+      await exportPromise
+    })
+
     expect(screen.getByRole('status')).toHaveTextContent(
       'Generated PDF locally.',
     )
+    expect(pdfButton).toHaveTextContent('Export PDF')
+    expect(pdfButton).not.toBeDisabled()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('shows a local PDF export failure without rendering a link', async () => {
+    mockedExportResumePdf.mockRejectedValueOnce(
+      new Error('Fixture PDF export failed.'),
+    )
+
+    render(<App />)
+
+    const pdfButton = screen.getByRole('button', { name: 'Export PDF' })
+
+    fireEvent.click(pdfButton)
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'PDF export failed. Try again in this browser.',
+      )
+    })
+
+    expect(mockedExportResumePdf).toHaveBeenCalledTimes(1)
+    expect(pdfButton).toHaveTextContent('Export PDF')
+    expect(pdfButton).not.toBeDisabled()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
