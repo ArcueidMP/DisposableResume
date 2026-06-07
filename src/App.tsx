@@ -11,7 +11,6 @@ import {
   Trash2,
 } from 'lucide-react'
 import { createDefaultResume, createEmptyResume } from './resume/defaults'
-import { exportResumePdf } from './pdf/exportResumePdf'
 import { createJsonFilename } from './pdf/filenames'
 import { resumeTemplateOptions } from './resume/schema'
 import type {
@@ -787,6 +786,8 @@ function App() {
     setIsExportingPdf(true)
 
     try {
+      const { exportResumePdf } = await import('./pdf/exportResumePdf')
+
       await exportResumePdf(resume)
       setExportStatus({
         kind: 'success',
