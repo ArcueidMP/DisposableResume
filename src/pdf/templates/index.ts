@@ -1,17 +1,27 @@
-import type { ComponentType } from 'react'
-import type { Resume, ResumeTemplate } from '../../resume/types'
+import { createElement, type ReactNode } from 'react'
+import type { ResumePresentation } from '../../resume/presentation'
+import type { ResumeTemplate } from '../../resume/types'
 import { ChineseCleanTemplate } from './chinese-clean'
 import { ClassicAtsTemplate } from './classic-ats'
 import { ModernAtsTemplate } from './modern-ats'
 
-export type ResumePdfTemplate = ComponentType<{ resume: Resume }>
+export type ResumePdfTemplateRenderer = (
+  presentation: ResumePresentation,
+) => ReactNode
 
 export const resumePdfTemplates = {
-  'classic-ats': ClassicAtsTemplate,
-  'modern-ats': ModernAtsTemplate,
-  'chinese-clean': ChineseCleanTemplate,
-} satisfies Record<ResumeTemplate, ResumePdfTemplate>
+  'classic-ats': (presentation) =>
+    createElement(ClassicAtsTemplate, { presentation }),
+  'modern-ats': (presentation) =>
+    createElement(ModernAtsTemplate, { presentation }),
+  'chinese-clean': (presentation) =>
+    createElement(ChineseCleanTemplate, { presentation }),
+} satisfies Record<ResumeTemplate, ResumePdfTemplateRenderer>
 
 export function getResumePdfTemplate(template: ResumeTemplate) {
-  return resumePdfTemplates[template] ?? resumePdfTemplates['classic-ats']
+  if (!Object.hasOwn(resumePdfTemplates, template)) {
+    throw new Error('Unsupported resume PDF template.')
+  }
+
+  return resumePdfTemplates[template]
 }

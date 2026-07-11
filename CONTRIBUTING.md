@@ -17,6 +17,7 @@ pnpm dev
 Run these before opening a PR:
 
 ```sh
+pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test
@@ -43,3 +44,12 @@ pnpm build
 - Avoid broad refactors unless they directly support the current task.
 - If an external link is necessary in the app UI, use `rel="noreferrer"` with
   `target="_blank"`.
+
+## Release Checklist
+
+- Confirm the package version and Git tag match.
+- Run every command in the Checks section from a frozen lockfile install.
+- Review JSON contract changes for an explicit schema version and migration.
+- Use only fake data in release notes, screenshots, and deployed smoke tests.
+- Verify the deployed security headers and complete JSON and PDF exports in a
+  browser before announcing the release.

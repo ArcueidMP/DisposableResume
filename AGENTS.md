@@ -5,6 +5,7 @@
 DisposableResume is a zero-retention, browser-only resume builder.
 
 The MVP is a lightweight open-source web app:
+
 - No account.
 - No backend.
 - No database.
@@ -20,7 +21,6 @@ The MVP is a lightweight open-source web app:
 - TypeScript
 - Tailwind CSS
 - Zod
-- React Hook Form
 - Zustand
 - @react-pdf/renderer
 - pnpm
@@ -43,6 +43,7 @@ The MVP is a lightweight open-source web app:
 ## MVP scope
 
 Build only:
+
 - Basic info
 - Work experience
 - Education
@@ -57,6 +58,7 @@ Build only:
 - Clear local data button
 
 Do not build yet:
+
 - AI rewrite
 - Resume upload parser
 - Login
@@ -68,12 +70,11 @@ Do not build yet:
 
 Before finalizing changes, run:
 
-pnpm build
-
-If typecheck or test scripts are added later, also run:
-
+pnpm format:check
+pnpm lint
 pnpm typecheck
 pnpm test
+pnpm build
 
 ## Development behavior
 

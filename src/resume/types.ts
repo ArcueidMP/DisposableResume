@@ -16,3 +16,4 @@ export type ResumeWork = z.infer<typeof resumeWorkSchema>
 export type ResumeEducation = z.infer<typeof resumeEducationSchema>
 export type ResumeProject = z.infer<typeof resumeProjectSchema>
 export type Resume = z.infer<typeof resumeSchema>
+export type ResumeDraft = z.input<typeof resumeSchema>

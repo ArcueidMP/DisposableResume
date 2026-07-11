@@ -8,7 +8,30 @@ vi.mock('./pdf/exportResumePdf', () => ({
 import App from './App'
 import { exportResumePdf } from './pdf/exportResumePdf'
 import { createDefaultResume } from './resume/defaults'
+import { MAX_RESUME_JSON_BYTES, parseResumeJson } from './resume/json'
+import { resumeLimits } from './resume/schema'
 import { useResumeStore } from './store/resume-store'
+
+const originalCreateObjectUrl = Object.getOwnPropertyDescriptor(
+  URL,
+  'createObjectURL',
+)
+const originalRevokeObjectUrl = Object.getOwnPropertyDescriptor(
+  URL,
+  'revokeObjectURL',
+)
+
+function restoreUrlMethod(
+  name: 'createObjectURL' | 'revokeObjectURL',
+  descriptor: PropertyDescriptor | undefined,
+) {
+  if (descriptor === undefined) {
+    Reflect.deleteProperty(URL, name)
+    return
+  }
+
+  Object.defineProperty(URL, name, descriptor)
+}
 
 function getPreviewParts() {
   const preview = screen.getByLabelText('Resume preview shell')
@@ -33,6 +56,8 @@ describe('App', () => {
   afterEach(() => {
     mockedExportResumePdf.mockClear()
     vi.restoreAllMocks()
+    restoreUrlMethod('createObjectURL', originalCreateObjectUrl)
+    restoreUrlMethod('revokeObjectURL', originalRevokeObjectUrl)
   })
 
   it('renders the DisposableResume shell without external links', () => {
@@ -60,7 +85,7 @@ describe('App', () => {
       target: { value: 'Fixture City, ZZ' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Skills' }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'Skills' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Skill 1' }), {
       target: { value: 'Schema, Store, UI' },
     })
 
@@ -76,9 +101,8 @@ describe('App', () => {
         'fixture.person@example.invalid | +0 111 222 3333 | Fixture City, ZZ',
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText('Schema')).toBeInTheDocument()
-    expect(screen.getByText('Store')).toBeInTheDocument()
-    expect(screen.getByText('UI')).toBeInTheDocument()
+    expect(screen.getByText('Schema, Store, UI')).toBeInTheDocument()
+    expect(useResumeStore.getState().resume.skills[0]).toBe('Schema, Store, UI')
     expect(getPreviewParts().preview).toHaveAttribute(
       'data-preview-template',
       'modern-ats',
@@ -170,7 +194,10 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Work organization 2'), {
       target: { value: 'Example Fixture Studio' },
     })
-    fireEvent.change(screen.getByLabelText('Work highlights 2'), {
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add Work 2 highlight' }),
+    )
+    fireEvent.change(screen.getByLabelText('Work 2 highlight 1'), {
       target: { value: 'Prepared safe client-only editor fixtures.' },
     })
 
@@ -186,6 +213,115 @@ describe('App', () => {
     expect(
       screen.queryByText('Fixture Builder, Example Fixture Studio'),
     ).not.toBeInTheDocument()
+  })
+
+  it.each([
+    {
+      addButton: 'Add work',
+      itemButton: 'Add Work 2 highlight',
+      itemField: 'Work 2 highlight 1',
+      itemRemoveButton: 'Remove Work 2 highlight 1',
+      readLines: () => useResumeStore.getState().resume.work[1]?.highlights,
+      section: 'Work experience',
+    },
+    {
+      addButton: 'Add education',
+      itemButton: 'Add Education 2 detail',
+      itemField: 'Education 2 detail 1',
+      itemRemoveButton: 'Remove Education 2 detail 1',
+      readLines: () => useResumeStore.getState().resume.education[1]?.details,
+      section: 'Education',
+    },
+    {
+      addButton: 'Add project',
+      itemButton: 'Add Project 2 highlight',
+      itemField: 'Project 2 highlight 1',
+      itemRemoveButton: 'Remove Project 2 highlight 1',
+      readLines: () => useResumeStore.getState().resume.projects[1]?.highlights,
+      section: 'Projects',
+    },
+  ])(
+    'stores each $section list item without delimiter-based rewriting',
+    ({
+      addButton,
+      itemButton,
+      itemField,
+      itemRemoveButton,
+      readLines,
+      section,
+    }) => {
+      render(<App />)
+
+      fireEvent.click(screen.getByRole('button', { name: section }))
+      fireEvent.click(screen.getByRole('button', { name: addButton }))
+      fireEvent.click(screen.getByRole('button', { name: itemButton }))
+
+      const literalItem = 'Research, design | delivery\nkept as one item'
+      const input = screen.getByLabelText(itemField)
+
+      fireEvent.change(input, { target: { value: literalItem } })
+
+      expect(input).toHaveValue(literalItem)
+      expect(readLines()).toEqual([literalItem])
+
+      fireEvent.click(screen.getByRole('button', { name: itemRemoveButton }))
+
+      expect(readLines()).toEqual([])
+    },
+  )
+
+  it('edits links and skills as structured items without delimiter codecs', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add link' }))
+    fireEvent.change(screen.getByLabelText('Link label 1'), {
+      target: { value: 'Portfolio | Labs, Notes' },
+    })
+    fireEvent.change(screen.getByLabelText('Link URL 1'), {
+      target: { value: 'https://example.invalid/profile?a=1,b=2' },
+    })
+
+    expect(useResumeStore.getState().resume.basics.links).toEqual([
+      {
+        label: 'Portfolio | Labs, Notes',
+        url: 'https://example.invalid/profile?a=1,b=2',
+      },
+    ])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Skills' }))
+    fireEvent.change(screen.getByLabelText('Skill 1'), {
+      target: { value: 'Research, design | delivery' },
+    })
+
+    expect(useResumeStore.getState().resume.skills[0]).toBe(
+      'Research, design | delivery',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove skill 1' }))
+    expect(useResumeStore.getState().resume.skills).toEqual([
+      'React',
+      'Privacy UX',
+    ])
+  })
+
+  it('enforces list limits in editor controls', () => {
+    useResumeStore
+      .getState()
+      .updateSkills(
+        Array.from(
+          { length: resumeLimits.skill.items },
+          (_, index) => `Skill ${index + 1}`,
+        ),
+      )
+
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Skills' }))
+
+    expect(screen.getByRole('button', { name: 'Add skill' })).toBeDisabled()
+    expect(screen.getByLabelText('Skill 1')).toHaveAttribute(
+      'maxlength',
+      String(resumeLimits.skill.item),
+    )
   })
 
   it('exports the current resume as JSON without rendering a link', async () => {
@@ -214,15 +350,50 @@ describe('App', () => {
       throw new Error('Expected JSON export to create an object URL.')
     }
 
-    const exportedBlob = firstCall[0] as Blob
+    const exportedBlob = firstCall[0]
     const exportedJson = JSON.parse(await exportedBlob.text()) as unknown
 
     expect(exportedJson).toMatchObject({
-      basics: { name: 'Sample Candidate' },
-      template: 'classic-ats',
+      schemaVersion: 1,
+      resume: {
+        basics: { name: 'Sample Candidate' },
+        template: 'classic-ats',
+      },
     })
+    expect(parseResumeJson(JSON.stringify(exportedJson)).success).toBe(true)
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:resume-json')
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('blocks JSON and PDF export when the draft violates the resume schema', async () => {
+    const createObjectUrl = vi.fn<(blob: Blob) => string>()
+
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectUrl,
+    })
+
+    render(<App />)
+
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'not-an-email' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export JSON' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Export blocked: fix invalid resume fields first.',
+    )
+    expect(createObjectUrl).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }))
+
+    await waitFor(() => {
+      expect(mockedExportResumePdf).not.toHaveBeenCalled()
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Export blocked: fix invalid resume fields first.',
+    )
   })
 
   it('exports the current in-memory resume as a browser-side PDF', async () => {
@@ -328,10 +499,15 @@ describe('App', () => {
     })
 
     expect(
-      screen.getByRole('heading', { level: 3, name: 'Imported Fixture Person' }),
+      screen.getByRole('heading', {
+        level: 3,
+        name: 'Imported Fixture Person',
+      }),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('Imported Fixture Certificate, Imported Sample Institute'),
+      screen.getByText(
+        'Imported Fixture Certificate, Imported Sample Institute',
+      ),
     ).toBeInTheDocument()
   })
 
@@ -359,15 +535,90 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 
-  it('clears editable data to a blank local resume', () => {
+  it('rejects an oversized import before reading the file', async () => {
+    const oversizedFile = new File(['{}'], 'oversized-fixture.json', {
+      type: 'application/json',
+    })
+    const textSpy = vi.spyOn(oversizedFile, 'text')
+
+    Object.defineProperty(oversizedFile, 'size', {
+      configurable: true,
+      value: MAX_RESUME_JSON_BYTES + 1,
+    })
+
     render(<App />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear to blank resume' }))
+    const importInput = screen.getByLabelText('Import resume JSON')
+
+    fireEvent.change(importInput, {
+      target: { files: [oversizedFile] },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Import failed: the selected JSON file is too large.',
+      )
+    })
+    expect(textSpy).not.toHaveBeenCalled()
+    expect(importInput).toHaveValue('')
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Sample Candidate' }),
+    ).toBeInTheDocument()
+  })
+
+  it('requires confirmation before clearing editable data', () => {
+    render(<App />)
+
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'Edited Fixture Person' },
+    })
+    const clearButton = screen.getByRole('button', {
+      name: 'Clear to blank resume',
+    })
+
+    fireEvent.click(clearButton)
+
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Clear this resume?',
+    )
+    expect(screen.getByLabelText('Name')).toHaveValue('Edited Fixture Person')
+    expect(screen.getByRole('button', { name: 'Confirm clear' })).toHaveFocus()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.getByLabelText('Name')).toHaveValue('Edited Fixture Person')
+    expect(clearButton).toHaveFocus()
+
+    fireEvent.click(clearButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm clear' }))
 
     expect(screen.getByLabelText('Name')).toHaveValue('')
     expect(
       screen.getByRole('heading', { level: 3, name: 'Untitled resume' }),
     ).toBeInTheDocument()
     expect(screen.getByText('No work entries')).toBeInTheDocument()
+  })
+
+  it('requires confirmation before resetting to fake defaults', () => {
+    render(<App />)
+
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'Edited Fixture Person' },
+    })
+    const resetButton = screen.getByRole('button', {
+      name: 'Reset fake defaults',
+    })
+
+    fireEvent.click(resetButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.getByLabelText('Name')).toHaveValue('Edited Fixture Person')
+    expect(resetButton).toHaveFocus()
+
+    fireEvent.click(resetButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm reset' }))
+
+    expect(screen.getByLabelText('Name')).toHaveValue('Sample Candidate')
+    expect(resetButton).toHaveFocus()
   })
 })

@@ -53,6 +53,17 @@ resume contents in those requests. Browser extensions, crash recovery, OS
 backups, downloaded files, print dialogs, and PDF viewers are outside the app's
 control.
 
+Resume fields request that the browser disable form autocomplete and spellcheck.
+Browsers and extensions may ignore those hints, and their form history, profile
+sync, enhanced spellcheck, or writing assistants can persist or transmit text
+outside the app's control. Review those browser features before entering
+sensitive resume data.
+
+The production CSP permits a `data:` connection for the PDF renderer's embedded
+WebAssembly initialization. This is an in-document data URL, not an HTTP or HTTPS
+request, and it must never contain resume-derived values. Remote fonts, images,
+rendering services, and other external resources remain blocked.
+
 ## Language Guidance
 
 Prefer:

@@ -9,6 +9,7 @@ import {
 import type {
   Resume,
   ResumeBasics,
+  ResumeDraft,
   ResumeEducation,
   ResumeProject,
   ResumeTemplate,
@@ -20,7 +21,7 @@ type EducationUpdate = Partial<Omit<ResumeEducation, 'id'>>
 type ProjectUpdate = Partial<Omit<ResumeProject, 'id'>>
 
 type ResumeStore = {
-  resume: Resume
+  resume: ResumeDraft
   replaceResume: (resume: Resume) => void
   updateBasics: (basics: Partial<ResumeBasics>) => void
   updateSkills: (skills: string[]) => void

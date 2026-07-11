@@ -10,9 +10,11 @@
 - [ ] Did not put resume data in URLs.
 - [ ] Did not log resume data.
 - [ ] Kept PDF export browser-side.
+- [ ] Kept the JSON contract compatible, or added an explicit versioned migration.
 
 ## Verification
 
+- [ ] `pnpm format:check`
 - [ ] `pnpm lint`
 - [ ] `pnpm typecheck`
 - [ ] `pnpm test`
