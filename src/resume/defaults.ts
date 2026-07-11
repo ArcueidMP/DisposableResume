@@ -1,6 +1,11 @@
-import type { Resume, ResumeEducation, ResumeProject, ResumeWork } from './types'
+import type {
+  ResumeDraft,
+  ResumeEducation,
+  ResumeProject,
+  ResumeWork,
+} from './types'
 
-export const defaultResume: Resume = {
+export const defaultResume: ResumeDraft = {
   template: 'classic-ats',
   basics: {
     name: 'Sample Candidate',
@@ -49,11 +54,11 @@ export const defaultResume: Resume = {
   skills: ['TypeScript', 'React', 'Privacy UX'],
 }
 
-export function createDefaultResume(): Resume {
+export function createDefaultResume(): ResumeDraft {
   return structuredClone(defaultResume)
 }
 
-export function createEmptyResume(): Resume {
+export function createEmptyResume(): ResumeDraft {
   return {
     template: 'classic-ats',
     basics: {

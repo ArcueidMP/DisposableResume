@@ -1,14 +1,6 @@
 import { Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import type { ReactNode } from 'react'
-import type { Resume } from '../../resume/types'
-import {
-  compactText,
-  formatContactLine,
-  formatDateLocationLine,
-  hasEducationContent,
-  hasProjectContent,
-  hasWorkContent,
-} from './shared'
+import type { ResumePresentation } from '../../resume/presentation'
 
 const styles = StyleSheet.create({
   page: {
@@ -78,13 +70,7 @@ const styles = StyleSheet.create({
   },
 })
 
-function Section({
-  children,
-  title,
-}: {
-  children: ReactNode
-  title: string
-}) {
+function Section({ children, title }: { children: ReactNode; title: string }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -93,99 +79,101 @@ function Section({
   )
 }
 
-function BulletList({ items }: { items: string[] }) {
-  return compactText(items).map((item, index) => (
+function BulletList({ items }: { items: readonly string[] }) {
+  return items.map((item, index) => (
     <Text key={`${item}-${index}`} style={styles.bullet}>
       - {item}
     </Text>
   ))
 }
 
-export function ModernAtsTemplate({ resume }: { resume: Resume }) {
-  const contact = formatContactLine(resume.basics)
-  const links = resume.basics.links
-    .map((link) => compactText([link.label, link.url]).join(': '))
-    .filter(Boolean)
-  const work = resume.work.filter(hasWorkContent)
-  const education = resume.education.filter(hasEducationContent)
-  const projects = resume.projects.filter(hasProjectContent)
-  const skills = compactText(resume.skills)
-
+export function ModernAtsTemplate({
+  presentation,
+}: {
+  presentation: ResumePresentation
+}) {
   return (
     <Page size="LETTER" style={styles.page}>
       <View style={styles.header}>
         <Text style={styles.name}>
-          {resume.basics.name.trim() || 'Untitled Resume'}
+          {presentation.header.name || 'Untitled Resume'}
         </Text>
-        {contact ? <Text style={styles.contact}>{contact}</Text> : null}
-        {links.length > 0 ? (
-          <Text style={styles.contact}>{links.join(' | ')}</Text>
+        {presentation.header.contact ? (
+          <Text style={styles.contact}>{presentation.header.contact}</Text>
+        ) : null}
+        {presentation.header.links.length > 0 ? (
+          <Text style={styles.contact}>
+            {presentation.header.links.join(' | ')}
+          </Text>
         ) : null}
       </View>
 
-      {skills.length > 0 ? (
-        <Section title="Skills">
-          <Text style={styles.skills}>{skills.join(' / ')}</Text>
-        </Section>
-      ) : null}
-
-      {work.length > 0 ? (
-        <Section title="Experience">
-          {work.map((item) => {
-            const meta = formatDateLocationLine(item)
-
-            return (
-              <View key={item.id} style={styles.entry}>
-                <View style={styles.row}>
-                  <Text style={styles.entryHeader}>
-                    {compactText([item.role, item.organization]).join(' at ') ||
-                      'Work Experience'}
-                  </Text>
-                  {meta ? <Text style={styles.meta}>{meta}</Text> : null}
-                </View>
-                <BulletList items={item.highlights} />
-              </View>
-            )
-          })}
-        </Section>
-      ) : null}
-
-      {education.length > 0 ? (
-        <Section title="Education">
-          {education.map((item) => {
-            const meta = formatDateLocationLine(item)
-
-            return (
-              <View key={item.id} style={styles.entry}>
-                <View style={styles.row}>
-                  <Text style={styles.entryHeader}>
-                    {compactText([item.credential, item.school]).join(' at ') ||
-                      'Education'}
-                  </Text>
-                  {meta ? <Text style={styles.meta}>{meta}</Text> : null}
-                </View>
-                <BulletList items={item.details} />
-              </View>
-            )
-          })}
-        </Section>
-      ) : null}
-
-      {projects.length > 0 ? (
-        <Section title="Projects">
-          {projects.map((item) => (
-            <View key={item.id} style={styles.entry}>
-              <Text style={styles.entryHeader}>
-                {item.name.trim() || 'Project'}
-              </Text>
-              {item.description.trim() ? (
-                <Text style={styles.description}>{item.description}</Text>
-              ) : null}
-              <BulletList items={item.highlights} />
-            </View>
-          ))}
-        </Section>
-      ) : null}
+      {presentation.sections.map((section) => {
+        switch (section.kind) {
+          case 'skills':
+            return section.items.length > 0 ? (
+              <Section key={section.kind} title="Skills">
+                <Text style={styles.skills}>{section.items.join(' / ')}</Text>
+              </Section>
+            ) : null
+          case 'work':
+            return section.items.length > 0 ? (
+              <Section key={section.kind} title="Experience">
+                {section.items.map((item) => (
+                  <View key={item.id} style={styles.entry}>
+                    <View style={styles.row}>
+                      <Text style={styles.entryHeader}>
+                        {[item.role, item.organization]
+                          .filter(Boolean)
+                          .join(' at ') || 'Work Experience'}
+                      </Text>
+                      {item.meta ? (
+                        <Text style={styles.meta}>{item.meta}</Text>
+                      ) : null}
+                    </View>
+                    <BulletList items={item.highlights} />
+                  </View>
+                ))}
+              </Section>
+            ) : null
+          case 'education':
+            return section.items.length > 0 ? (
+              <Section key={section.kind} title="Education">
+                {section.items.map((item) => (
+                  <View key={item.id} style={styles.entry}>
+                    <View style={styles.row}>
+                      <Text style={styles.entryHeader}>
+                        {[item.credential, item.school]
+                          .filter(Boolean)
+                          .join(' at ') || 'Education'}
+                      </Text>
+                      {item.meta ? (
+                        <Text style={styles.meta}>{item.meta}</Text>
+                      ) : null}
+                    </View>
+                    <BulletList items={item.details} />
+                  </View>
+                ))}
+              </Section>
+            ) : null
+          case 'projects':
+            return section.items.length > 0 ? (
+              <Section key={section.kind} title="Projects">
+                {section.items.map((item) => (
+                  <View key={item.id} style={styles.entry}>
+                    <Text style={styles.entryHeader}>
+                      {item.name || 'Project'}
+                    </Text>
+                    {item.description ? (
+                      <Text style={styles.description}>{item.description}</Text>
+                    ) : null}
+                    <BulletList items={item.highlights} />
+                  </View>
+                ))}
+              </Section>
+            ) : null
+        }
+      })}
     </Page>
   )
 }

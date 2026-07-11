@@ -1,6 +1,6 @@
 import { pdf } from '@react-pdf/renderer'
+import { downloadBlob } from '../browser/download'
 import type { Resume } from '../resume/types'
-import { downloadBlob } from './download'
 import { createPdfFilename } from './filenames'
 import { ResumePdfDocument } from './ResumePdfDocument'
 

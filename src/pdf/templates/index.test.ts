@@ -22,9 +22,12 @@ describe('resume PDF template registry', () => {
     )
   })
 
-  it('falls back to Classic ATS for an unknown runtime value', () => {
-    expect(getResumePdfTemplate('unknown-template' as ResumeTemplate)).toBe(
-      resumePdfTemplates['classic-ats'],
-    )
-  })
+  it.each(['unknown-template', 'toString'])(
+    'rejects unsupported runtime value %s instead of falling back',
+    (template) => {
+      expect(() => getResumePdfTemplate(template as ResumeTemplate)).toThrow(
+        'Unsupported resume PDF template.',
+      )
+    },
+  )
 })

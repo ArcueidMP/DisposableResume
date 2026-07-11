@@ -64,8 +64,13 @@ See [PRIVACY.md](./PRIVACY.md) for the project privacy boundaries and wording ca
 
 Requirements:
 
-- Node 22
-- pnpm through Corepack
+- Node 22.13 or newer within the Node 22 release line
+- pnpm 11.2.2 through Corepack
+
+The same constraints live in `package.json`, so package managers warn when the
+local development runtime is outside the supported range. `.nvmrc` selects the
+Node 22 release line; check `node --version` if a dependency reports an engine
+incompatibility.
 
 Setup:
 
@@ -87,6 +92,7 @@ pnpm build
 Run the required local checks before finalizing changes:
 
 ```sh
+pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test
@@ -103,3 +109,14 @@ Deploy DisposableResume as a static Cloudflare Pages site.
 - Do not add a Workers backend.
 
 Cloudflare Pages should serve the generated static files only.
+
+The repository's [`public/_headers`](./public/_headers) file is copied into the
+build output and applies the production security policy. In particular, the CSP
+blocks remote connections and resources while allowing same-origin app assets,
+local Blob/data images, and the embedded WebAssembly used by browser-side PDF
+layout. The `data:` allowance on `connect-src` is local-only; it does not permit
+HTTP or HTTPS destinations.
+
+After deployment, verify the response headers on the live origin and complete a
+PDF export in a browser with the developer console open. A local Vite development
+server does not apply Cloudflare Pages' `_headers` file.

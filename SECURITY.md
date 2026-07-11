@@ -1,6 +1,7 @@
 # Security
 
-DisposableResume is currently pre-release.
+DisposableResume v0.1.0 is the initial MVP release. Versions below 1.0 remain
+under active development and may change through explicit, documented contracts.
 
 ## Reporting
 
@@ -23,5 +24,5 @@ Privacy-sensitive issues include:
 
 ## Supported Versions
 
-No stable release has been published yet. Security expectations apply to the
-current default branch and active feature branches.
+Security fixes are applied to the latest v0.1.x release and the current default
+branch. Older pre-release builds are not maintained.

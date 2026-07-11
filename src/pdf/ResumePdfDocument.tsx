@@ -1,21 +1,11 @@
 import { Document } from '@react-pdf/renderer'
+import { createResumePresentation } from '../resume/presentation'
 import type { Resume } from '../resume/types'
-import { ChineseCleanTemplate } from './templates/chinese-clean'
-import { ClassicAtsTemplate } from './templates/classic-ats'
-import { ModernAtsTemplate } from './templates/modern-ats'
-
-function renderTemplate(resume: Resume) {
-  if (resume.template === 'modern-ats') {
-    return <ModernAtsTemplate resume={resume} />
-  }
-
-  if (resume.template === 'chinese-clean') {
-    return <ChineseCleanTemplate resume={resume} />
-  }
-
-  return <ClassicAtsTemplate resume={resume} />
-}
+import { getResumePdfTemplate } from './templates'
 
 export function ResumePdfDocument({ resume }: { resume: Resume }) {
-  return <Document>{renderTemplate(resume)}</Document>
+  const presentation = createResumePresentation(resume)
+  const renderTemplate = getResumePdfTemplate(presentation.template)
+
+  return <Document>{renderTemplate(presentation)}</Document>
 }
