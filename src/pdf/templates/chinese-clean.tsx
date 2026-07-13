@@ -1,15 +1,23 @@
 import { Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import type { ReactNode } from 'react'
 import type { ResumePresentation } from '../../resume/presentation'
+import { CHINESE_CLEAN_FONT_FAMILY } from '../fonts/chinese-clean-font-family'
+import { CjkWrapText } from './cjk-wrap-text'
+
+const BODY_FONT_SIZE = 10
+const LINE_HEIGHT_RATIO = 1.42
+const NAME_FONT_SIZE = 21
+const BODY_LINE_HEIGHT = BODY_FONT_SIZE * LINE_HEIGHT_RATIO
+const NAME_LINE_HEIGHT = NAME_FONT_SIZE * LINE_HEIGHT_RATIO
 
 const styles = StyleSheet.create({
   page: {
     paddingBottom: 38,
     paddingHorizontal: 42,
     paddingTop: 40,
-    fontFamily: 'Helvetica',
-    fontSize: 10,
-    lineHeight: 1.42,
+    fontFamily: CHINESE_CLEAN_FONT_FAMILY,
+    fontSize: BODY_FONT_SIZE,
+    lineHeight: LINE_HEIGHT_RATIO,
     color: '#1a1d1a',
   },
   header: {
@@ -18,19 +26,21 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   name: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 21,
+    fontWeight: 700,
+    fontSize: NAME_FONT_SIZE,
   },
-  contact: {
-    color: '#4e5b4d',
+  contactContainer: {
     marginTop: 5,
+  },
+  contactText: {
+    color: '#4e5b4d',
   },
   section: {
     marginTop: 13,
   },
   sectionTitle: {
     color: '#263a2b',
-    fontFamily: 'Helvetica-Bold',
+    fontWeight: 700,
     fontSize: 10,
     marginBottom: 6,
     paddingBottom: 3,
@@ -39,16 +49,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   entryHeader: {
-    fontFamily: 'Helvetica-Bold',
+    fontWeight: 700,
   },
-  meta: {
-    color: '#536052',
+  metaContainer: {
     marginTop: 2,
   },
-  description: {
+  metaText: {
+    color: '#536052',
+  },
+  descriptionContainer: {
     marginTop: 3,
   },
-  bullet: {
+  bulletContainer: {
     marginLeft: 8,
     marginTop: 2,
   },
@@ -65,9 +77,13 @@ function Section({ children, title }: { children: ReactNode; title: string }) {
 
 function BulletList({ items }: { items: readonly string[] }) {
   return items.map((item, index) => (
-    <Text key={`${item}-${index}`} style={styles.bullet}>
-      - {item}
-    </Text>
+    <CjkWrapText
+      containerStyle={styles.bulletContainer}
+      key={`${item}-${index}`}
+      lineHeight={BODY_LINE_HEIGHT}
+      prefix="- "
+      text={item}
+    />
   ))
 }
 
@@ -79,16 +95,26 @@ export function ChineseCleanTemplate({
   return (
     <Page size="A4" style={styles.page}>
       <View style={styles.header}>
-        <Text style={styles.name}>
-          {presentation.header.name || 'Untitled Resume'}
-        </Text>
+        <CjkWrapText
+          lineHeight={NAME_LINE_HEIGHT}
+          text={presentation.header.name || 'Untitled Resume'}
+          textStyle={styles.name}
+        />
         {presentation.header.contact ? (
-          <Text style={styles.contact}>{presentation.header.contact}</Text>
+          <CjkWrapText
+            containerStyle={styles.contactContainer}
+            lineHeight={BODY_LINE_HEIGHT}
+            text={presentation.header.contact}
+            textStyle={styles.contactText}
+          />
         ) : null}
         {presentation.header.links.length > 0 ? (
-          <Text style={styles.contact}>
-            {presentation.header.links.join(' | ')}
-          </Text>
+          <CjkWrapText
+            containerStyle={styles.contactContainer}
+            lineHeight={BODY_LINE_HEIGHT}
+            text={presentation.header.links.join(' | ')}
+            textStyle={styles.contactText}
+          />
         ) : null}
       </View>
 
@@ -97,7 +123,10 @@ export function ChineseCleanTemplate({
           case 'skills':
             return section.items.length > 0 ? (
               <Section key={section.kind} title="Skills">
-                <Text>{section.items.join(' | ')}</Text>
+                <CjkWrapText
+                  lineHeight={BODY_LINE_HEIGHT}
+                  text={section.items.join(' | ')}
+                />
               </Section>
             ) : null
           case 'work':
@@ -105,13 +134,22 @@ export function ChineseCleanTemplate({
               <Section key={section.kind} title="Experience">
                 {section.items.map((item) => (
                   <View key={item.id} style={styles.entry}>
-                    <Text style={styles.entryHeader}>
-                      {[item.organization, item.role]
-                        .filter(Boolean)
-                        .join(' - ') || 'Work Experience'}
-                    </Text>
+                    <CjkWrapText
+                      lineHeight={BODY_LINE_HEIGHT}
+                      text={
+                        [item.organization, item.role]
+                          .filter(Boolean)
+                          .join(' - ') || 'Work Experience'
+                      }
+                      textStyle={styles.entryHeader}
+                    />
                     {item.meta ? (
-                      <Text style={styles.meta}>{item.meta}</Text>
+                      <CjkWrapText
+                        containerStyle={styles.metaContainer}
+                        lineHeight={BODY_LINE_HEIGHT}
+                        text={item.meta}
+                        textStyle={styles.metaText}
+                      />
                     ) : null}
                     <BulletList items={item.highlights} />
                   </View>
@@ -123,13 +161,22 @@ export function ChineseCleanTemplate({
               <Section key={section.kind} title="Education">
                 {section.items.map((item) => (
                   <View key={item.id} style={styles.entry}>
-                    <Text style={styles.entryHeader}>
-                      {[item.school, item.credential]
-                        .filter(Boolean)
-                        .join(' - ') || 'Education'}
-                    </Text>
+                    <CjkWrapText
+                      lineHeight={BODY_LINE_HEIGHT}
+                      text={
+                        [item.school, item.credential]
+                          .filter(Boolean)
+                          .join(' - ') || 'Education'
+                      }
+                      textStyle={styles.entryHeader}
+                    />
                     {item.meta ? (
-                      <Text style={styles.meta}>{item.meta}</Text>
+                      <CjkWrapText
+                        containerStyle={styles.metaContainer}
+                        lineHeight={BODY_LINE_HEIGHT}
+                        text={item.meta}
+                        textStyle={styles.metaText}
+                      />
                     ) : null}
                     <BulletList items={item.details} />
                   </View>
@@ -141,11 +188,17 @@ export function ChineseCleanTemplate({
               <Section key={section.kind} title="Projects">
                 {section.items.map((item) => (
                   <View key={item.id} style={styles.entry}>
-                    <Text style={styles.entryHeader}>
-                      {item.name || 'Project'}
-                    </Text>
+                    <CjkWrapText
+                      lineHeight={BODY_LINE_HEIGHT}
+                      text={item.name || 'Project'}
+                      textStyle={styles.entryHeader}
+                    />
                     {item.description ? (
-                      <Text style={styles.description}>{item.description}</Text>
+                      <CjkWrapText
+                        containerStyle={styles.descriptionContainer}
+                        lineHeight={BODY_LINE_HEIGHT}
+                        text={item.description}
+                      />
                     ) : null}
                     <BulletList items={item.highlights} />
                   </View>

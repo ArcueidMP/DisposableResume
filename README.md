@@ -1,7 +1,7 @@
 # DisposableResume
 
 - **Live demo:** https://disposableresume.arcueidmp.com
-- **Release:** v0.1.0
+- **Release candidate:** v0.2.0
 
 DisposableResume is a zero-retention, browser-only resume builder for creating a resume, previewing it, exporting it, and clearing it from the browser.
 
@@ -19,7 +19,9 @@ The MVP is intentionally lightweight:
 
 ## Live Demo
 
-Try the v0.1.0 release at https://disposableresume.arcueidmp.com.
+Try the current deployment at https://disposableresume.arcueidmp.com. The live
+site may track the default branch; use the repository's GitHub Releases and
+[CHANGELOG.md](./CHANGELOG.md) for immutable version history.
 
 ## MVP Features
 
@@ -29,9 +31,10 @@ Try the v0.1.0 release at https://disposableresume.arcueidmp.com.
 - Projects editor.
 - Skills editor.
 - Live preview.
-- Template selection.
+- Template-aware live preview and selection.
+- Up/down controls for ordering repeatable resume content.
 - Browser-side PDF export.
-- JSON export/import with validation.
+- Versioned JSON export/import with strict validation and legacy v0 import.
 - Clear local data button.
 - Three PDF templates:
   - Classic ATS
@@ -44,13 +47,17 @@ PDF export runs in the browser with `@react-pdf/renderer`.
 
 The app does not send resume contents to a backend service for rendering. Downloaded PDF and JSON filenames use conservative app-generated names such as `disposable-resume.pdf` and `disposable-resume.json`.
 
-## Known Font Limitation
+## Chinese PDF Fonts
 
-The app does not load remote fonts, CDN assets, tracking images, or external rendering resources.
+The Chinese Clean template uses pinned, bundled Chiron Hei HK font files for
+Simplified and Traditional Chinese character coverage. Chinese PDFs use a
+Hong Kong/Traditional glyph style; the app does not automatically select
+region-specific Simplified or Traditional glyph forms.
 
-Until an approved local CJK font strategy is added, Chinese text rendering depends on the PDF renderer and browser environment and may have limited glyph coverage in exported PDFs.
-
-Do not add bundled font files, emoji source registration, remote font requests, or font registration APIs without prior approval.
+The local fonts are loaded on demand from the same origin only when Chinese
+Clean is exported. The request contains no resume data. Classic ATS, Modern ATS,
+and the initial application load do not request the CJK assets. The app does not
+load fonts from CDNs or third-party rendering services.
 
 ## Privacy Model
 
@@ -115,7 +122,8 @@ build output and applies the production security policy. In particular, the CSP
 blocks remote connections and resources while allowing same-origin app assets,
 local Blob/data images, and the embedded WebAssembly used by browser-side PDF
 layout. The `data:` allowance on `connect-src` is local-only; it does not permit
-HTTP or HTTPS destinations.
+HTTP or HTTPS destinations. The app's own origin is the only permitted HTTP(S)
+destination, for its pinned font assets.
 
 After deployment, verify the response headers on the live origin and complete a
 PDF export in a browser with the developer console open. A local Vite development

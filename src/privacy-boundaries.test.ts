@@ -38,6 +38,7 @@ const architectureRules = [
   {
     name: 'unapproved PDF font or emoji registration',
     pattern: /\b(?:Font\.register|registerEmojiSource)\s*\(/,
+    allowedFiles: ['src/pdf/fonts/register-chinese-clean-fonts.ts'],
   },
   {
     name: 'application-owned network transport',
@@ -245,11 +246,21 @@ describe('privacy boundaries', () => {
       .filter((filePath) => !filePath.endsWith(join('test', 'setup.ts')))
       .flatMap((filePath) => {
         const contents = readFileSync(filePath, 'utf8')
+        const relativePath = relative(process.cwd(), filePath)
 
         return architectureRules
-          .filter(({ pattern }) => pattern.test(contents))
+          .filter(
+            (rule) =>
+              rule.pattern.test(contents) &&
+              !(
+                'allowedFiles' in rule &&
+                rule.allowedFiles.some(
+                  (allowedFile) => allowedFile === relativePath,
+                )
+              ),
+          )
           .map(({ name }) => ({
-            file: relative(process.cwd(), filePath),
+            file: relativePath,
             rule: name,
           }))
       })

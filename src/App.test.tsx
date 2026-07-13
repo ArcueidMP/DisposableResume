@@ -45,6 +45,14 @@ function getPreviewParts() {
   return { header, preview, skills }
 }
 
+function prepareResume(
+  update: (resume: ReturnType<typeof createDefaultResume>) => void,
+) {
+  const resume = createDefaultResume()
+  update(resume)
+  useResumeStore.setState({ resume })
+}
+
 describe('App', () => {
   const mockedExportResumePdf = vi.mocked(exportResumePdf)
 
@@ -322,6 +330,162 @@ describe('App', () => {
       'maxlength',
       String(resumeLimits.skill.item),
     )
+  })
+
+  it.each([
+    {
+      button: 'Move link 2 of 2 up',
+      expected: ['Second', 'First'],
+      prepare: () =>
+        prepareResume((resume) => {
+          resume.basics.links = [
+            { label: 'First', url: 'https://first.example.invalid' },
+            { label: 'Second', url: 'https://second.example.invalid' },
+          ]
+        }),
+      read: () =>
+        useResumeStore.getState().resume.basics.links.map((link) => link.label),
+      section: undefined,
+    },
+    {
+      button: 'Move skill 2 of 3 up',
+      expected: ['React', 'TypeScript', 'Privacy UX'],
+      prepare: () => undefined,
+      read: () => useResumeStore.getState().resume.skills,
+      section: 'Skills',
+    },
+    {
+      button: 'Move work item 2 of 2 up',
+      expected: ['work-example-2', 'work-example-1'],
+      prepare: () =>
+        prepareResume((resume) => {
+          resume.work.push({
+            ...structuredClone(resume.work[0]!),
+            id: 'work-example-2',
+            role: 'Second fixture role',
+          })
+        }),
+      read: () => useResumeStore.getState().resume.work.map((item) => item.id),
+      section: 'Work experience',
+    },
+    {
+      button: 'Move work 1 highlight 2 of 2 up',
+      expected: [
+        'Shaped readable interfaces for editing structured candidate details.',
+        'Built privacy-minded browser tools with client-only data handling.',
+      ],
+      prepare: () => undefined,
+      read: () => useResumeStore.getState().resume.work[0]?.highlights,
+      section: 'Work experience',
+    },
+    {
+      button: 'Move education item 2 of 2 up',
+      expected: ['education-example-2', 'education-example-1'],
+      prepare: () =>
+        prepareResume((resume) => {
+          resume.education.push({
+            ...structuredClone(resume.education[0]!),
+            id: 'education-example-2',
+            school: 'Second Fixture Institute',
+          })
+        }),
+      read: () =>
+        useResumeStore.getState().resume.education.map((item) => item.id),
+      section: 'Education',
+    },
+    {
+      button: 'Move education 1 detail 2 of 2 up',
+      expected: [
+        'Second fixture detail.',
+        'Completed a fake-only fixture program for product builders.',
+      ],
+      prepare: () =>
+        prepareResume((resume) => {
+          resume.education[0]?.details.push('Second fixture detail.')
+        }),
+      read: () => useResumeStore.getState().resume.education[0]?.details,
+      section: 'Education',
+    },
+    {
+      button: 'Move project item 2 of 2 up',
+      expected: ['project-example-2', 'project-example-1'],
+      prepare: () =>
+        prepareResume((resume) => {
+          resume.projects.push({
+            ...structuredClone(resume.projects[0]!),
+            id: 'project-example-2',
+            name: 'Second Fixture Project',
+          })
+        }),
+      read: () =>
+        useResumeStore.getState().resume.projects.map((item) => item.id),
+      section: 'Projects',
+    },
+    {
+      button: 'Move project 1 highlight 2 of 2 up',
+      expected: [
+        'Kept fixture data fictional and suitable for tests.',
+        'Modeled basics, skills, work, education, and project sections.',
+      ],
+      prepare: () => undefined,
+      read: () => useResumeStore.getState().resume.projects[0]?.highlights,
+      section: 'Projects',
+    },
+  ])(
+    'connects the $button editor control to its store move action',
+    ({ button, expected, prepare, read, section }) => {
+      prepare()
+      render(<App />)
+
+      if (section !== undefined) {
+        fireEvent.click(screen.getByRole('button', { name: section }))
+      }
+
+      fireEvent.click(screen.getByRole('button', { name: button }))
+
+      expect(read()).toEqual(expected)
+    },
+  )
+
+  it('disables boundary moves and follows a moved item with focus and status', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Skills' }))
+
+    expect(
+      screen.getByRole('button', { name: 'Move skill 1 of 3 up' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: 'Move skill 3 of 3 down' }),
+    ).toBeDisabled()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Move skill 2 of 3 up' }),
+    )
+
+    expect(
+      screen.getByRole('button', { name: 'Move skill 1 of 3 down' }),
+    ).toHaveFocus()
+    expect(
+      screen
+        .getByText('Moved skill to position 1 of 3.')
+        .closest('[aria-live="polite"]'),
+    ).toBeInTheDocument()
+    expect(getPreviewParts().skills).toHaveTextContent(
+      'React | TypeScript | Privacy UX',
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Move skill 1 of 3 down' }),
+    )
+
+    expect(
+      screen.getByRole('button', { name: 'Move skill 2 of 3 down' }),
+    ).toHaveFocus()
+    expect(
+      screen
+        .getByText('Moved skill to position 2 of 3.')
+        .closest('[aria-live="polite"]'),
+    ).toBeInTheDocument()
   })
 
   it('exports the current resume as JSON without rendering a link', async () => {

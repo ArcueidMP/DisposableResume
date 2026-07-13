@@ -1,30 +1,31 @@
-import { Plus, Trash2 } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Plus } from 'lucide-react'
 import { resumeLimits } from '../resume/schema'
 import type { ResumeLink } from '../resume/types'
-import { useResumeStore } from '../store/resume-store'
-import {
-  dangerButtonClass,
-  secondaryButtonClass,
-  TextAreaInput,
-  TextInput,
-} from '../ui/controls'
+import { useResumeStore, type MoveDirection } from '../store/resume-store'
+import { secondaryButtonClass, TextAreaInput, TextInput } from '../ui/controls'
+import { ReorderableItemActions, ReorderCoordinator } from './ReorderControls'
 import type { ResumeSection } from './sections'
 
 function StringListEditor({
+  groupId,
   itemLabel,
   itemName,
   label,
   maxItems,
   maxLength,
   onChange,
+  onMove,
   values,
 }: {
+  groupId: string
   itemLabel: string
   itemName: string
   label: string
   maxItems: number
   maxLength: number
   onChange: (values: string[]) => void
+  onMove: (index: number, direction: MoveDirection) => void
   values: string[]
 }) {
   return (
@@ -60,17 +61,18 @@ function StringListEditor({
             }
             value={value}
           />
-          <button
-            aria-label={`Remove ${itemName} ${index + 1}`}
-            className={`${dangerButtonClass} sm:self-end`}
-            onClick={() =>
+          <ReorderableItemActions
+            className="sm:self-end"
+            groupId={groupId}
+            index={index}
+            itemName={itemName.toLowerCase()}
+            onMove={(direction) => onMove(index, direction)}
+            onRemove={() =>
               onChange(values.filter((_, itemIndex) => itemIndex !== index))
             }
-            type="button"
-          >
-            <Trash2 aria-hidden="true" size={16} />
-            Remove
-          </button>
+            removeLabel={`Remove ${itemName} ${index + 1}`}
+            total={values.length}
+          />
         </div>
       ))}
     </fieldset>
@@ -80,9 +82,11 @@ function StringListEditor({
 function LinksEditor({
   links,
   onChange,
+  onMove,
 }: {
   links: ResumeLink[]
   onChange: (links: ResumeLink[]) => void
+  onMove: (index: number, direction: MoveDirection) => void
 }) {
   return (
     <fieldset aria-label="Links" className="grid gap-3">
@@ -130,17 +134,18 @@ function LinksEditor({
             type="url"
             value={link.url}
           />
-          <button
-            aria-label={`Remove link ${index + 1}`}
-            className={`${dangerButtonClass} sm:self-end`}
-            onClick={() =>
+          <ReorderableItemActions
+            className="sm:self-end"
+            groupId="links"
+            index={index}
+            itemName="link"
+            onMove={(direction) => onMove(index, direction)}
+            onRemove={() =>
               onChange(links.filter((_, itemIndex) => itemIndex !== index))
             }
-            type="button"
-          >
-            <Trash2 aria-hidden="true" size={16} />
-            Remove
-          </button>
+            removeLabel={`Remove link ${index + 1}`}
+            total={links.length}
+          />
         </article>
       ))}
     </fieldset>
@@ -150,6 +155,7 @@ function LinksEditor({
 function BasicsEditor() {
   const basics = useResumeStore((state) => state.resume.basics)
   const updateBasics = useResumeStore((state) => state.updateBasics)
+  const moveLink = useResumeStore((state) => state.moveLink)
 
   return (
     <fieldset className="grid gap-4">
@@ -185,6 +191,7 @@ function BasicsEditor() {
       <LinksEditor
         links={basics.links}
         onChange={(links) => updateBasics({ links })}
+        onMove={moveLink}
       />
     </fieldset>
   )
@@ -195,6 +202,8 @@ function WorkEditor() {
   const addWork = useResumeStore((state) => state.addWork)
   const updateWork = useResumeStore((state) => state.updateWork)
   const removeWork = useResumeStore((state) => state.removeWork)
+  const moveWork = useResumeStore((state) => state.moveWork)
+  const moveWorkHighlight = useResumeStore((state) => state.moveWorkHighlight)
 
   return (
     <section className="grid gap-4" aria-labelledby="work-editor-title">
@@ -223,15 +232,15 @@ function WorkEditor() {
           >
             <div className="flex items-center justify-between gap-3">
               <h4 className="font-semibold text-[#121612]">Work {index + 1}</h4>
-              <button
-                aria-label={`Remove work item ${index + 1}`}
-                className={dangerButtonClass}
-                onClick={() => removeWork(item.id)}
-                type="button"
-              >
-                <Trash2 aria-hidden="true" size={16} />
-                Remove
-              </button>
+              <ReorderableItemActions
+                groupId="work"
+                index={index}
+                itemName="work item"
+                onMove={(direction) => moveWork(item.id, direction)}
+                onRemove={() => removeWork(item.id)}
+                removeLabel={`Remove work item ${index + 1}`}
+                total={work.length}
+              />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <TextInput
@@ -273,12 +282,16 @@ function WorkEditor() {
               />
             </div>
             <StringListEditor
+              groupId={`work-${item.id}-highlights`}
               itemLabel="Highlight"
               itemName={`Work ${index + 1} highlight`}
               label="Highlights"
               maxItems={resumeLimits.work.highlights}
               maxLength={resumeLimits.work.highlight}
               onChange={(highlights) => updateWork(item.id, { highlights })}
+              onMove={(highlightIndex, direction) =>
+                moveWorkHighlight(item.id, highlightIndex, direction)
+              }
               values={item.highlights}
             />
           </article>
@@ -293,6 +306,10 @@ function EducationEditor() {
   const addEducation = useResumeStore((state) => state.addEducation)
   const updateEducation = useResumeStore((state) => state.updateEducation)
   const removeEducation = useResumeStore((state) => state.removeEducation)
+  const moveEducation = useResumeStore((state) => state.moveEducation)
+  const moveEducationDetail = useResumeStore(
+    (state) => state.moveEducationDetail,
+  )
 
   return (
     <section className="grid gap-4" aria-labelledby="education-editor-title">
@@ -323,15 +340,15 @@ function EducationEditor() {
               <h4 className="font-semibold text-[#121612]">
                 Education {index + 1}
               </h4>
-              <button
-                aria-label={`Remove education item ${index + 1}`}
-                className={dangerButtonClass}
-                onClick={() => removeEducation(item.id)}
-                type="button"
-              >
-                <Trash2 aria-hidden="true" size={16} />
-                Remove
-              </button>
+              <ReorderableItemActions
+                groupId="education"
+                index={index}
+                itemName="education item"
+                onMove={(direction) => moveEducation(item.id, direction)}
+                onRemove={() => removeEducation(item.id)}
+                removeLabel={`Remove education item ${index + 1}`}
+                total={education.length}
+              />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <TextInput
@@ -375,12 +392,16 @@ function EducationEditor() {
               />
             </div>
             <StringListEditor
+              groupId={`education-${item.id}-details`}
               itemLabel="Detail"
               itemName={`Education ${index + 1} detail`}
               label="Details"
               maxItems={resumeLimits.education.details}
               maxLength={resumeLimits.education.detail}
               onChange={(details) => updateEducation(item.id, { details })}
+              onMove={(detailIndex, direction) =>
+                moveEducationDetail(item.id, detailIndex, direction)
+              }
               values={item.details}
             />
           </article>
@@ -395,6 +416,10 @@ function ProjectsEditor() {
   const addProject = useResumeStore((state) => state.addProject)
   const updateProject = useResumeStore((state) => state.updateProject)
   const removeProject = useResumeStore((state) => state.removeProject)
+  const moveProject = useResumeStore((state) => state.moveProject)
+  const moveProjectHighlight = useResumeStore(
+    (state) => state.moveProjectHighlight,
+  )
 
   return (
     <section className="grid gap-4" aria-labelledby="projects-editor-title">
@@ -425,15 +450,15 @@ function ProjectsEditor() {
               <h4 className="font-semibold text-[#121612]">
                 Project {index + 1}
               </h4>
-              <button
-                aria-label={`Remove project item ${index + 1}`}
-                className={dangerButtonClass}
-                onClick={() => removeProject(item.id)}
-                type="button"
-              >
-                <Trash2 aria-hidden="true" size={16} />
-                Remove
-              </button>
+              <ReorderableItemActions
+                groupId="projects"
+                index={index}
+                itemName="project item"
+                onMove={(direction) => moveProject(item.id, direction)}
+                onRemove={() => removeProject(item.id)}
+                removeLabel={`Remove project item ${index + 1}`}
+                total={projects.length}
+              />
             </div>
             <TextInput
               ariaLabel={`Project name ${index + 1}`}
@@ -452,12 +477,16 @@ function ProjectsEditor() {
               value={item.description}
             />
             <StringListEditor
+              groupId={`project-${item.id}-highlights`}
               itemLabel="Highlight"
               itemName={`Project ${index + 1} highlight`}
               label="Highlights"
               maxItems={resumeLimits.project.highlights}
               maxLength={resumeLimits.project.highlight}
               onChange={(highlights) => updateProject(item.id, { highlights })}
+              onMove={(highlightIndex, direction) =>
+                moveProjectHighlight(item.id, highlightIndex, direction)
+              }
               values={item.highlights}
             />
           </article>
@@ -470,6 +499,7 @@ function ProjectsEditor() {
 function SkillsEditor() {
   const skills = useResumeStore((state) => state.resume.skills)
   const updateSkills = useResumeStore((state) => state.updateSkills)
+  const moveSkill = useResumeStore((state) => state.moveSkill)
 
   return (
     <fieldset className="grid gap-4">
@@ -503,17 +533,18 @@ function SkillsEditor() {
             }
             value={skill}
           />
-          <button
-            aria-label={`Remove skill ${index + 1}`}
-            className={`${dangerButtonClass} sm:self-end`}
-            onClick={() =>
+          <ReorderableItemActions
+            className="sm:self-end"
+            groupId="skills"
+            index={index}
+            itemName="skill"
+            onMove={(direction) => moveSkill(index, direction)}
+            onRemove={() =>
               updateSkills(skills.filter((_, itemIndex) => itemIndex !== index))
             }
-            type="button"
-          >
-            <Trash2 aria-hidden="true" size={16} />
-            Remove
-          </button>
+            removeLabel={`Remove skill ${index + 1}`}
+            total={skills.length}
+          />
         </div>
       ))}
     </fieldset>
@@ -521,16 +552,25 @@ function SkillsEditor() {
 }
 
 export function ResumeEditor({ section }: { section: ResumeSection }) {
+  let editor: ReactNode
+
   switch (section) {
     case 'Basic info':
-      return <BasicsEditor />
+      editor = <BasicsEditor />
+      break
     case 'Work experience':
-      return <WorkEditor />
+      editor = <WorkEditor />
+      break
     case 'Education':
-      return <EducationEditor />
+      editor = <EducationEditor />
+      break
     case 'Projects':
-      return <ProjectsEditor />
+      editor = <ProjectsEditor />
+      break
     case 'Skills':
-      return <SkillsEditor />
+      editor = <SkillsEditor />
+      break
   }
+
+  return <ReorderCoordinator>{editor}</ReorderCoordinator>
 }
