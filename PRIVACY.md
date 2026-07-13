@@ -19,9 +19,11 @@ persistent browser storage.
   revoke object URLs after use.
 - Export filenames should be generic and should not be derived from resume data.
 - PDF export must not load remote fonts, images, stylesheets, CDNs, or other
-  network assets.
-- Do not register bundled fonts, CJK fonts, emoji sources, or remote font files
-  without prior approval.
+  third-party network assets.
+- The approved Chinese Clean fonts are pinned, bundled app assets. They may be
+  registered only by the dedicated PDF font module and loaded from the same
+  origin on demand. Do not add other bundled fonts, emoji sources, or remote
+  font files without a separate privacy and license review.
 - Do not write resume-derived values into hidden PDF metadata.
 - JSON import errors should not echo resume contents, local file paths, or
   detailed validation payloads.
@@ -33,8 +35,10 @@ not be sent to a server for PDF rendering, font lookup, analytics, logging, or
 file naming.
 
 The Classic ATS, Modern ATS, and Chinese Clean templates are local app
-templates. Chinese Clean may not fully render all CJK glyphs until an approved
-local font strategy is added.
+templates. Chinese Clean loads its bundled Chiron Hei HK regular and bold fonts
+on demand for Simplified and Traditional Chinese character coverage. These
+same-origin font requests contain no resume values. The chosen family uses a
+Hong Kong/Traditional glyph style and does not perform regional glyph switching.
 
 ## Clear Local Data
 
@@ -59,10 +63,11 @@ sync, enhanced spellcheck, or writing assistants can persist or transmit text
 outside the app's control. Review those browser features before entering
 sensitive resume data.
 
-The production CSP permits a `data:` connection for the PDF renderer's embedded
-WebAssembly initialization. This is an in-document data URL, not an HTTP or HTTPS
-request, and it must never contain resume-derived values. Remote fonts, images,
-rendering services, and other external resources remain blocked.
+The production CSP permits same-origin font loading and a `data:` connection for
+the PDF renderer's embedded WebAssembly initialization. The latter is an
+in-document data URL, not an HTTP or HTTPS request, and it must never contain
+resume-derived values. Remote fonts, images, rendering services, and other
+external resources remain blocked.
 
 ## Language Guidance
 

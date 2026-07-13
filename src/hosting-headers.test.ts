@@ -64,7 +64,7 @@ describe('Cloudflare Pages security headers', () => {
 
     expect(directives).toEqual({
       'base-uri': "'none'",
-      'connect-src': 'data:',
+      'connect-src': "'self' data:",
       'default-src': "'none'",
       'font-src': "'none'",
       'form-action': "'none'",
