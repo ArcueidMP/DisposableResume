@@ -5,7 +5,7 @@ All notable changes to DisposableResume are documented in this file.
 The project follows Semantic Versioning while its JSON export contract and user
 features continue to evolve before 1.0.
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-07-13
 
 ### Added
 
@@ -45,5 +45,5 @@ features continue to evolve before 1.0.
 - Browser-side PDF export and local JSON import/export.
 - Clear local data control and the initial zero-retention privacy model.
 
-[0.2.0]: https://github.com/ArcueidMP/DisposableResume/compare/v0.1.0...HEAD
+[0.2.0]: https://github.com/ArcueidMP/DisposableResume/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ArcueidMP/DisposableResume/releases/tag/v0.1.0

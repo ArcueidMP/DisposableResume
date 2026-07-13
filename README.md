@@ -1,7 +1,7 @@
 # DisposableResume
 
 - **Live demo:** https://disposableresume.arcueidmp.com
-- **Release candidate:** v0.2.0
+- **Release:** v0.2.0
 
 DisposableResume is a zero-retention, browser-only resume builder for creating a resume, previewing it, exporting it, and clearing it from the browser.
 

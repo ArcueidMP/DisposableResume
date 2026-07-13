@@ -1,8 +1,7 @@
 # Security
 
-DisposableResume v0.2.0 is the current release candidate. Versions below 1.0
-remain under active development and may change through explicit, documented
-contracts.
+DisposableResume v0.2.0 is the current release. Versions below 1.0 remain under
+active development and may change through explicit, documented contracts.
 
 ## Reporting
 
