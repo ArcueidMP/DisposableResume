@@ -1,15 +1,24 @@
 import { Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import type { ReactNode } from 'react'
 import type { ResumePresentation } from '../../resume/presentation'
+import type { ResumePdfTypography } from '../fonts/resume-pdf-typography'
+import { TemplateText } from './template-text'
+
+const BODY_FONT_SIZE = 10
+const META_FONT_SIZE = 9
+const NAME_FONT_SIZE = 22
+const LINE_HEIGHT_RATIO = 1.4
+const BODY_LINE_HEIGHT = BODY_FONT_SIZE * LINE_HEIGHT_RATIO
+const META_LINE_HEIGHT = META_FONT_SIZE * LINE_HEIGHT_RATIO
+const NAME_LINE_HEIGHT = NAME_FONT_SIZE * LINE_HEIGHT_RATIO
 
 const styles = StyleSheet.create({
   page: {
     paddingBottom: 40,
     paddingHorizontal: 46,
     paddingTop: 42,
-    fontFamily: 'Helvetica',
-    fontSize: 10,
-    lineHeight: 1.4,
+    fontSize: BODY_FONT_SIZE,
+    lineHeight: LINE_HEIGHT_RATIO,
     color: '#172017',
   },
   header: {
@@ -19,19 +28,21 @@ const styles = StyleSheet.create({
   },
   name: {
     color: '#1f3b29',
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 22,
+    fontWeight: 700,
+    fontSize: NAME_FONT_SIZE,
   },
-  contact: {
-    color: '#435043',
+  contactContainer: {
     marginTop: 6,
+  },
+  contactText: {
+    color: '#435043',
   },
   section: {
     marginTop: 15,
   },
   sectionTitle: {
     color: '#1f3b29',
-    fontFamily: 'Helvetica-Bold',
+    fontWeight: 700,
     fontSize: 11,
     marginBottom: 7,
     textTransform: 'uppercase',
@@ -47,28 +58,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  entryHeader: {
-    fontFamily: 'Helvetica-Bold',
+  entryHeaderContainer: {
     maxWidth: '70%',
   },
-  meta: {
-    color: '#586457',
-    fontSize: 9,
-    maxWidth: '30%',
-    textAlign: 'right',
+  entryHeaderText: {
+    fontWeight: 700,
   },
-  description: {
-    color: '#364236',
+  metaContainer: {
+    maxWidth: '30%',
+  },
+  metaText: {
+    color: '#586457',
+    fontSize: META_FONT_SIZE,
+  },
+  descriptionContainer: {
     marginTop: 3,
   },
-  bullet: {
+  descriptionText: {
+    color: '#364236',
+  },
+  bulletContainer: {
     marginLeft: 8,
     marginTop: 2,
   },
-  skills: {
+  skillsText: {
     color: '#364236',
   },
 })
+
+type TextLayout = ResumePdfTypography['textLayout']
 
 function Section({ children, title }: { children: ReactNode; title: string }) {
   return (
@@ -79,32 +97,95 @@ function Section({ children, title }: { children: ReactNode; title: string }) {
   )
 }
 
-function BulletList({ items }: { items: readonly string[] }) {
+function BulletList({
+  items,
+  textLayout,
+}: {
+  items: readonly string[]
+  textLayout: TextLayout
+}) {
   return items.map((item, index) => (
-    <Text key={`${item}-${index}`} style={styles.bullet}>
-      - {item}
-    </Text>
+    <TemplateText
+      containerStyle={styles.bulletContainer}
+      key={`${item}-${index}`}
+      lineHeight={BODY_LINE_HEIGHT}
+      prefix="- "
+      text={item}
+      textLayout={textLayout}
+    />
   ))
+}
+
+function EntryRow({
+  meta,
+  textLayout,
+  title,
+}: {
+  meta: string
+  textLayout: TextLayout
+  title: string
+}) {
+  return (
+    <View style={styles.row}>
+      <TemplateText
+        containerStyle={styles.entryHeaderContainer}
+        lineHeight={BODY_LINE_HEIGHT}
+        text={title}
+        textLayout={textLayout}
+        textStyle={styles.entryHeaderText}
+      />
+      {meta ? (
+        <TemplateText
+          align="right"
+          containerStyle={styles.metaContainer}
+          lineHeight={META_LINE_HEIGHT}
+          text={meta}
+          textLayout={textLayout}
+          textStyle={styles.metaText}
+        />
+      ) : null}
+    </View>
+  )
 }
 
 export function ModernAtsTemplate({
   presentation,
+  typography,
 }: {
   presentation: ResumePresentation
+  typography: ResumePdfTypography
 }) {
+  const { textLayout } = typography
+
   return (
-    <Page size="LETTER" style={styles.page}>
+    <Page
+      size="LETTER"
+      style={[styles.page, { fontFamily: typography.fontFamily }]}
+    >
       <View style={styles.header}>
-        <Text style={styles.name}>
-          {presentation.header.name || 'Untitled Resume'}
-        </Text>
+        <TemplateText
+          lineHeight={NAME_LINE_HEIGHT}
+          text={presentation.header.name || 'Untitled Resume'}
+          textLayout={textLayout}
+          textStyle={styles.name}
+        />
         {presentation.header.contact ? (
-          <Text style={styles.contact}>{presentation.header.contact}</Text>
+          <TemplateText
+            containerStyle={styles.contactContainer}
+            lineHeight={BODY_LINE_HEIGHT}
+            text={presentation.header.contact}
+            textLayout={textLayout}
+            textStyle={styles.contactText}
+          />
         ) : null}
         {presentation.header.links.length > 0 ? (
-          <Text style={styles.contact}>
-            {presentation.header.links.join(' | ')}
-          </Text>
+          <TemplateText
+            containerStyle={styles.contactContainer}
+            lineHeight={BODY_LINE_HEIGHT}
+            text={presentation.header.links.join(' | ')}
+            textLayout={textLayout}
+            textStyle={styles.contactText}
+          />
         ) : null}
       </View>
 
@@ -113,7 +194,12 @@ export function ModernAtsTemplate({
           case 'skills':
             return section.items.length > 0 ? (
               <Section key={section.kind} title="Skills">
-                <Text style={styles.skills}>{section.items.join(' / ')}</Text>
+                <TemplateText
+                  lineHeight={BODY_LINE_HEIGHT}
+                  text={section.items.join(' / ')}
+                  textLayout={textLayout}
+                  textStyle={styles.skillsText}
+                />
               </Section>
             ) : null
           case 'work':
@@ -121,17 +207,19 @@ export function ModernAtsTemplate({
               <Section key={section.kind} title="Experience">
                 {section.items.map((item) => (
                   <View key={item.id} style={styles.entry}>
-                    <View style={styles.row}>
-                      <Text style={styles.entryHeader}>
-                        {[item.role, item.organization]
+                    <EntryRow
+                      meta={item.meta}
+                      textLayout={textLayout}
+                      title={
+                        [item.role, item.organization]
                           .filter(Boolean)
-                          .join(' at ') || 'Work Experience'}
-                      </Text>
-                      {item.meta ? (
-                        <Text style={styles.meta}>{item.meta}</Text>
-                      ) : null}
-                    </View>
-                    <BulletList items={item.highlights} />
+                          .join(' at ') || 'Work Experience'
+                      }
+                    />
+                    <BulletList
+                      items={item.highlights}
+                      textLayout={textLayout}
+                    />
                   </View>
                 ))}
               </Section>
@@ -141,17 +229,16 @@ export function ModernAtsTemplate({
               <Section key={section.kind} title="Education">
                 {section.items.map((item) => (
                   <View key={item.id} style={styles.entry}>
-                    <View style={styles.row}>
-                      <Text style={styles.entryHeader}>
-                        {[item.credential, item.school]
+                    <EntryRow
+                      meta={item.meta}
+                      textLayout={textLayout}
+                      title={
+                        [item.credential, item.school]
                           .filter(Boolean)
-                          .join(' at ') || 'Education'}
-                      </Text>
-                      {item.meta ? (
-                        <Text style={styles.meta}>{item.meta}</Text>
-                      ) : null}
-                    </View>
-                    <BulletList items={item.details} />
+                          .join(' at ') || 'Education'
+                      }
+                    />
+                    <BulletList items={item.details} textLayout={textLayout} />
                   </View>
                 ))}
               </Section>
@@ -161,13 +248,25 @@ export function ModernAtsTemplate({
               <Section key={section.kind} title="Projects">
                 {section.items.map((item) => (
                   <View key={item.id} style={styles.entry}>
-                    <Text style={styles.entryHeader}>
-                      {item.name || 'Project'}
-                    </Text>
+                    <TemplateText
+                      lineHeight={BODY_LINE_HEIGHT}
+                      text={item.name || 'Project'}
+                      textLayout={textLayout}
+                      textStyle={styles.entryHeaderText}
+                    />
                     {item.description ? (
-                      <Text style={styles.description}>{item.description}</Text>
+                      <TemplateText
+                        containerStyle={styles.descriptionContainer}
+                        lineHeight={BODY_LINE_HEIGHT}
+                        text={item.description}
+                        textLayout={textLayout}
+                        textStyle={styles.descriptionText}
+                      />
                     ) : null}
-                    <BulletList items={item.highlights} />
+                    <BulletList
+                      items={item.highlights}
+                      textLayout={textLayout}
+                    />
                   </View>
                 ))}
               </Section>

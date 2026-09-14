@@ -13,7 +13,14 @@ const boldFontAsset = new URL(
 let fontsRegistered = false
 
 function resolveFontSource(asset: URL) {
-  return import.meta.env.SSR ? decodeURIComponent(asset.pathname) : asset.href
+  if (!import.meta.env.SSR) {
+    return asset.href
+  }
+
+  // Node file URLs keep a leading slash before Windows drive letters
+  // ("/D:/..."), which fontkit would otherwise resolve against the current
+  // drive. Strip it so the same module works on macOS, Linux, and Windows.
+  return decodeURIComponent(asset.pathname).replace(/^\/(?=[A-Za-z]:\/)/, '')
 }
 
 export function registerChineseCleanFonts() {

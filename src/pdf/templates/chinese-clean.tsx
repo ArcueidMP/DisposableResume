@@ -1,7 +1,7 @@
 import { Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import type { ReactNode } from 'react'
 import type { ResumePresentation } from '../../resume/presentation'
-import { CHINESE_CLEAN_FONT_FAMILY } from '../fonts/chinese-clean-font-family'
+import type { ResumePdfTypography } from '../fonts/resume-pdf-typography'
 import { CjkWrapText } from './cjk-wrap-text'
 
 const BODY_FONT_SIZE = 10
@@ -15,7 +15,6 @@ const styles = StyleSheet.create({
     paddingBottom: 38,
     paddingHorizontal: 42,
     paddingTop: 40,
-    fontFamily: CHINESE_CLEAN_FONT_FAMILY,
     fontSize: BODY_FONT_SIZE,
     lineHeight: LINE_HEIGHT_RATIO,
     color: '#1a1d1a',
@@ -89,11 +88,16 @@ function BulletList({ items }: { items: readonly string[] }) {
 
 export function ChineseCleanTemplate({
   presentation,
+  typography,
 }: {
   presentation: ResumePresentation
+  typography: ResumePdfTypography
 }) {
   return (
-    <Page size="A4" style={styles.page}>
+    <Page
+      size="A4"
+      style={[styles.page, { fontFamily: typography.fontFamily }]}
+    >
       <View style={styles.header}>
         <CjkWrapText
           lineHeight={NAME_LINE_HEIGHT}
