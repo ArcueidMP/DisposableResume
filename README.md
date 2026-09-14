@@ -49,15 +49,20 @@ The app does not send resume contents to a backend service for rendering. Downlo
 
 ## Chinese PDF Fonts
 
-The Chinese Clean template uses pinned, bundled Chiron Hei HK font files for
-Simplified and Traditional Chinese character coverage. Chinese PDFs use a
+Every template can render Simplified and Traditional Chinese. The Chinese Clean
+template always uses the pinned, bundled Chiron Hei HK font files. Classic ATS
+and Modern ATS use the built-in Helvetica for Latin-only resumes and switch to
+the same bundled Chiron Hei HK files, with per-character line wrapping, as soon
+as the resume contains characters that Helvetica cannot draw. Chinese PDFs use a
 Hong Kong/Traditional glyph style; the app does not automatically select
 region-specific Simplified or Traditional glyph forms.
 
-The local fonts are loaded on demand from the same origin only when Chinese
-Clean is exported. The request contains no resume data. Classic ATS, Modern ATS,
-and the initial application load do not request the CJK assets. The app does not
-load fonts from CDNs or third-party rendering services.
+The local fonts are loaded on demand from the same origin only when an export
+needs them: always for Chinese Clean, and for Classic ATS or Modern ATS only
+when the resume contains characters outside the built-in font's Latin-1 range.
+The request contains no resume data. Latin-only Classic ATS and Modern ATS
+exports and the initial application load do not request the CJK assets. The app
+does not load fonts from CDNs or third-party rendering services.
 
 ## Privacy Model
 

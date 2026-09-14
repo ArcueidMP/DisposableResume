@@ -1,18 +1,25 @@
 import { pdf } from '@react-pdf/renderer'
 import { downloadBlob } from '../browser/download'
+import { createResumePresentation } from '../resume/presentation'
 import type { Resume } from '../resume/types'
 import { createPdfFilename } from './filenames'
+import { resolveResumePdfTypography } from './fonts/resume-pdf-typography'
 import { ResumePdfDocument } from './ResumePdfDocument'
 
 export async function createResumePdfBlob(resume: Resume) {
-  if (resume.template === 'chinese-clean') {
+  const presentation = createResumePresentation(resume)
+  const typography = resolveResumePdfTypography(presentation)
+
+  if (typography.requiresChineseCleanFonts) {
     const { registerChineseCleanFonts } =
       await import('./fonts/register-chinese-clean-fonts')
 
     registerChineseCleanFonts()
   }
 
-  return pdf(<ResumePdfDocument resume={resume} />).toBlob()
+  return pdf(
+    <ResumePdfDocument presentation={presentation} typography={typography} />,
+  ).toBlob()
 }
 
 export async function exportResumePdf(resume: Resume) {

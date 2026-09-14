@@ -11,24 +11,38 @@ const styles = StyleSheet.create({
   },
 })
 
+const justifyContentByAlign = {
+  center: 'center',
+  left: 'flex-start',
+  right: 'flex-end',
+} as const
+
 type PdfStyle = NonNullable<ComponentProps<typeof View>['style']>
 
+export type CjkWrapTextAlign = keyof typeof justifyContentByAlign
+
 export function CjkWrapText({
+  align = 'left',
   containerStyle,
   lineHeight,
   prefix,
   text,
   textStyle,
 }: {
-  containerStyle?: PdfStyle
+  align?: CjkWrapTextAlign | undefined
+  containerStyle?: PdfStyle | undefined
   lineHeight: number
-  prefix?: string
+  prefix?: string | undefined
   text: string
-  textStyle?: PdfStyle
+  textStyle?: PdfStyle | undefined
 }) {
   const lines = createCjkWrapLines(text, prefix)
+  const lineStyle = [
+    styles.line,
+    { justifyContent: justifyContentByAlign[align], minHeight: lineHeight },
+  ]
   const renderedLines = lines.map((tokens, lineIndex) => (
-    <View key={lineIndex} style={[styles.line, { minHeight: lineHeight }]}>
+    <View key={lineIndex} style={lineStyle}>
       {tokens.length === 0 ? (
         <TextToken style={textStyle} value=" " />
       ) : (

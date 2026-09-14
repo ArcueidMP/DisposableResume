@@ -2,7 +2,7 @@
 
 import { createElement } from 'react'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -246,7 +246,10 @@ describe('privacy boundaries', () => {
       .filter((filePath) => !filePath.endsWith(join('test', 'setup.ts')))
       .flatMap((filePath) => {
         const contents = readFileSync(filePath, 'utf8')
+        // Compare with the POSIX-style allowlist entries on every platform.
         const relativePath = relative(process.cwd(), filePath)
+          .split(sep)
+          .join('/')
 
         return architectureRules
           .filter(
