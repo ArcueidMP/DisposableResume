@@ -17,6 +17,9 @@ persistent browser storage.
 - JSON import/export must be user-controlled local file handling.
 - PDF and JSON exports should use local browser Blob/object URL downloads and
   revoke object URLs after use.
+- The live PDF preview must render in the browser and display from a local
+  `blob:` object URL in a same-origin frame. Preview object URLs should be
+  revoked once a newer render replaces them or the preview unmounts.
 - Export filenames should be generic and should not be derived from resume data.
 - PDF export must not load remote fonts, images, stylesheets, CDNs, or other
   third-party network assets.
@@ -34,11 +37,17 @@ PDF export is designed to run entirely in the browser. Resume contents should
 not be sent to a server for PDF rendering, font lookup, analytics, logging, or
 file naming.
 
+The live preview uses the same pipeline: it renders the current draft to a PDF
+in the browser and shows it in the browser's built-in PDF viewer from a local
+object URL. The preview does not validate, upload, or persist the draft.
+
 The Classic ATS, Modern ATS, and Chinese Clean templates are local app
-templates. Chinese Clean loads its bundled Chiron Hei HK regular and bold fonts
-on demand for Simplified and Traditional Chinese character coverage. These
-same-origin font requests contain no resume values. The chosen family uses a
-Hong Kong/Traditional glyph style and does not perform regional glyph switching.
+templates. Chinese Clean, and any resume containing characters the built-in
+Helvetica font cannot draw, loads the bundled Chiron Hei HK regular and bold
+fonts on demand for Simplified and Traditional Chinese character coverage, for
+the preview as well as for export. These same-origin font requests contain no
+resume values. The chosen family uses a Hong Kong/Traditional glyph style and
+does not perform regional glyph switching.
 
 ## Clear Local Data
 
@@ -63,11 +72,14 @@ sync, enhanced spellcheck, or writing assistants can persist or transmit text
 outside the app's control. Review those browser features before entering
 sensitive resume data.
 
-The production CSP permits same-origin font loading and a `data:` connection for
-the PDF renderer's embedded WebAssembly initialization. The latter is an
-in-document data URL, not an HTTP or HTTPS request, and it must never contain
-resume-derived values. Remote fonts, images, rendering services, and other
-external resources remain blocked.
+The production CSP permits same-origin font loading, a `data:` connection for
+the PDF renderer's embedded WebAssembly initialization, and `blob:` frames for
+the in-page PDF preview. The `data:` connection is an in-document data URL, not
+an HTTP or HTTPS request, and it must never contain resume-derived values. Blob
+URLs are local to the page that created them. The browser's built-in PDF viewer
+renders the preview frame and, like downloaded files, is outside the app's
+control. Remote fonts, images, rendering services, and other external resources
+remain blocked.
 
 ## Language Guidance
 
