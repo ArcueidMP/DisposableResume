@@ -30,8 +30,8 @@ site may track the default branch; use the repository's GitHub Releases and
 - Education editor.
 - Projects editor.
 - Skills editor.
-- Live preview.
-- Template-aware live preview and selection.
+- Live PDF preview rendered by the same browser-side template code as export.
+- Template selection that re-renders the preview.
 - Up/down controls for ordering repeatable resume content.
 - Browser-side PDF export.
 - Versioned JSON export/import with strict validation and legacy v0 import.
@@ -40,6 +40,20 @@ site may track the default branch; use the repository's GitHub Releases and
   - Classic ATS
   - Modern ATS
   - Chinese Clean
+
+## Live Preview
+
+The preview panel shows the PDF that Export PDF would download. The app renders
+the current draft with `@react-pdf/renderer` in the browser shortly after each
+edit, keeps the previous page on screen until the next render is ready, and
+displays the result in the browser's built-in PDF viewer from a local `blob:`
+object URL. Preview object URLs are revoked as soon as a newer render replaces
+them. Nothing about the preview leaves the page.
+
+Because the preview is a real PDF, template switches, line breaks, page breaks,
+and fonts match the exported file. Browsers without an inline PDF viewer, which
+includes many mobile browsers, may show an empty frame; Export PDF still works
+there.
 
 ## PDF Export
 
@@ -57,12 +71,13 @@ as the resume contains characters that Helvetica cannot draw. Chinese PDFs use a
 Hong Kong/Traditional glyph style; the app does not automatically select
 region-specific Simplified or Traditional glyph forms.
 
-The local fonts are loaded on demand from the same origin only when an export
-needs them: always for Chinese Clean, and for Classic ATS or Modern ATS only
-when the resume contains characters outside the built-in font's Latin-1 range.
-The request contains no resume data. Latin-only Classic ATS and Modern ATS
-exports and the initial application load do not request the CJK assets. The app
-does not load fonts from CDNs or third-party rendering services.
+The local fonts are loaded on demand from the same origin only when the live
+preview or an export needs them: always for Chinese Clean, and for Classic ATS
+or Modern ATS only when the resume contains characters outside the built-in
+font's Latin-1 range. The request contains no resume data. Latin-only Classic
+ATS and Modern ATS resumes, including the default fixture shown on first load,
+do not request the CJK assets. The app does not load fonts from CDNs or
+third-party rendering services.
 
 ## Privacy Model
 
@@ -125,10 +140,11 @@ Cloudflare Pages should serve the generated static files only.
 The repository's [`public/_headers`](./public/_headers) file is copied into the
 build output and applies the production security policy. In particular, the CSP
 blocks remote connections and resources while allowing same-origin app assets,
-local Blob/data images, and the embedded WebAssembly used by browser-side PDF
-layout. The `data:` allowance on `connect-src` is local-only; it does not permit
-HTTP or HTTPS destinations. The app's own origin is the only permitted HTTP(S)
-destination, for its pinned font assets.
+local Blob/data images, local `blob:` frames for the in-page PDF preview, and
+the embedded WebAssembly used by browser-side PDF layout. The `data:` allowance
+on `connect-src` is local-only; it does not permit HTTP or HTTPS destinations.
+The app's own origin is the only permitted HTTP(S) destination, for its pinned
+font assets.
 
 After deployment, verify the response headers on the live origin and complete a
 PDF export in a browser with the developer console open. A local Vite development

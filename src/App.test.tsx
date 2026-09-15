@@ -2,14 +2,16 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./pdf/exportResumePdf', () => ({
+  createResumePdfBlob: vi.fn(),
   exportResumePdf: vi.fn(),
 }))
 
 import App from './App'
-import { exportResumePdf } from './pdf/exportResumePdf'
+import { createResumePdfBlob, exportResumePdf } from './pdf/exportResumePdf'
 import { createDefaultResume } from './resume/defaults'
 import { MAX_RESUME_JSON_BYTES, parseResumeJson } from './resume/json'
 import { resumeLimits } from './resume/schema'
+import type { ResumeDraft } from './resume/types'
 import { useResumeStore } from './store/resume-store'
 
 const originalCreateObjectUrl = Object.getOwnPropertyDescriptor(
@@ -33,16 +35,39 @@ function restoreUrlMethod(
   Object.defineProperty(URL, name, descriptor)
 }
 
-function getPreviewParts() {
-  const preview = screen.getByLabelText('Resume preview shell')
-  const header = preview.querySelector('[data-preview-header="true"]')
-  const skills = preview.querySelector('[data-preview-skills-layout]')
+function createFixturePdfBlob() {
+  return new Blob(['%PDF-1.7 fixture'], { type: 'application/pdf' })
+}
 
-  if (!(header instanceof HTMLElement) || !(skills instanceof HTMLElement)) {
-    throw new Error('Expected the live preview to render testable parts.')
-  }
+function installObjectUrlFakes() {
+  let objectUrlCount = 0
+  const createObjectUrl = vi.fn<(blob: Blob) => string>(() => {
+    objectUrlCount += 1
 
-  return { header, preview, skills }
+    return `blob:preview/${objectUrlCount}`
+  })
+  const revokeObjectUrl = vi.fn<(objectUrl: string) => void>()
+
+  Object.defineProperty(URL, 'createObjectURL', {
+    configurable: true,
+    value: createObjectUrl,
+  })
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    configurable: true,
+    value: revokeObjectUrl,
+  })
+
+  return { createObjectUrl, revokeObjectUrl }
+}
+
+function getPreviewFrame() {
+  return screen.getByTitle('Resume PDF preview')
+}
+
+function getPreviewStatus() {
+  return document
+    .querySelector('[data-preview-status]')
+    ?.getAttribute('data-preview-status')
 }
 
 function prepareResume(
@@ -55,14 +80,31 @@ function prepareResume(
 
 describe('App', () => {
   const mockedExportResumePdf = vi.mocked(exportResumePdf)
+  const mockedCreateResumePdfBlob = vi.mocked(createResumePdfBlob)
+  let objectUrlFakes: ReturnType<typeof installObjectUrlFakes>
+
+  function lastPreviewRender(): ResumeDraft {
+    const lastCall = mockedCreateResumePdfBlob.mock.calls.at(-1)
+
+    if (lastCall === undefined) {
+      throw new Error('Expected the live preview to render a PDF.')
+    }
+
+    return lastCall[0]
+  }
 
   beforeEach(() => {
     useResumeStore.getState().resetToDefaults()
     mockedExportResumePdf.mockResolvedValue(undefined)
+    mockedCreateResumePdfBlob.mockImplementation(() =>
+      Promise.resolve(createFixturePdfBlob()),
+    )
+    objectUrlFakes = installObjectUrlFakes()
   })
 
   afterEach(() => {
-    mockedExportResumePdf.mockClear()
+    mockedExportResumePdf.mockReset()
+    mockedCreateResumePdfBlob.mockReset()
     vi.restoreAllMocks()
     restoreUrlMethod('createObjectURL', originalCreateObjectUrl)
     restoreUrlMethod('revokeObjectURL', originalRevokeObjectUrl)
@@ -77,7 +119,7 @@ describe('App', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  it('updates basics, skills, and template selection locally', () => {
+  it('updates basics, skills, and template selection locally', async () => {
     render(<App />)
 
     fireEvent.change(screen.getByLabelText('Name'), {
@@ -101,83 +143,145 @@ describe('App', () => {
 
     fireEvent.click(modernTemplate)
 
-    expect(
-      screen.getByRole('heading', { level: 3, name: 'Fixture Person' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'fixture.person@example.invalid | +0 111 222 3333 | Fixture City, ZZ',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Schema, Store, UI')).toBeInTheDocument()
     expect(useResumeStore.getState().resume.skills[0]).toBe('Schema, Store, UI')
-    expect(getPreviewParts().preview).toHaveAttribute(
-      'data-preview-template',
-      'modern-ats',
-    )
     expect(modernTemplate).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByText('Preview style: Modern ATS')).toBeInTheDocument()
+
+    // The preview renders the edited draft itself, not a validated copy.
+    await waitFor(() => {
+      expect(lastPreviewRender()).toMatchObject({
+        basics: {
+          email: 'fixture.person@example.invalid',
+          location: 'Fixture City, ZZ',
+          name: 'Fixture Person',
+          phone: '+0 111 222 3333',
+        },
+        skills: ['Schema, Store, UI', 'React', 'Privacy UX'],
+        template: 'modern-ats',
+      })
+    })
+    await waitFor(() => {
+      expect(getPreviewStatus()).toBe('ready')
+    })
+    expect(getPreviewFrame()).toHaveAttribute(
+      'src',
+      expect.stringMatching(/^blob:preview\/\d+#toolbar=0&navpanes=0/),
+    )
   })
 
-  it('changes the live preview styling when templates switch', () => {
+  it('renders each selected template through the PDF export pipeline', async () => {
     render(<App />)
 
-    let previewParts = getPreviewParts()
+    expect(getPreviewStatus()).toBe('rendering')
+    expect(screen.getByText('Rendering')).toBeInTheDocument()
 
-    expect(previewParts.preview).toHaveAttribute(
-      'data-preview-template',
-      'classic-ats',
-    )
-    expect(previewParts.preview).toHaveAttribute(
-      'data-preview-layout',
-      'classic-centered',
-    )
-    expect(previewParts.preview).toHaveClass('font-serif', 'p-6')
-    expect(previewParts.header).toHaveClass('text-center')
-    expect(previewParts.skills).toHaveAttribute(
-      'data-preview-skills-layout',
-      'inline',
-    )
+    await waitFor(() => {
+      expect(getPreviewFrame()).toHaveAttribute(
+        'src',
+        'blob:preview/1#toolbar=0&navpanes=0&view=FitH',
+      )
+    })
+    expect(lastPreviewRender().template).toBe('classic-ats')
+    expect(screen.getByText('Up to date')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Modern ATS' }))
-    previewParts = getPreviewParts()
 
-    expect(previewParts.preview).toHaveAttribute(
-      'data-preview-template',
-      'modern-ats',
-    )
-    expect(previewParts.preview).toHaveAttribute(
-      'data-preview-layout',
-      'modern-accented',
-    )
-    expect(previewParts.preview).toHaveClass('font-sans', 'p-5')
-    expect(previewParts.header).toHaveClass('border-l-4', 'text-left')
-    expect(previewParts.skills).toHaveAttribute(
-      'data-preview-skills-layout',
-      'pills',
-    )
-    expect(previewParts.skills).toHaveClass('flex', 'flex-wrap')
+    await waitFor(() => {
+      expect(lastPreviewRender().template).toBe('modern-ats')
+    })
+    await waitFor(() => {
+      expect(getPreviewFrame()).toHaveAttribute(
+        'src',
+        expect.stringContaining('blob:preview/2#'),
+      )
+    })
 
     fireEvent.click(screen.getByRole('button', { name: 'Chinese Clean' }))
-    previewParts = getPreviewParts()
 
-    expect(previewParts.preview).toHaveAttribute(
-      'data-preview-template',
-      'chinese-clean',
+    await waitFor(() => {
+      expect(lastPreviewRender().template).toBe('chinese-clean')
+    })
+    await waitFor(() => {
+      expect(getPreviewFrame()).toHaveAttribute(
+        'src',
+        expect.stringContaining('blob:preview/3#'),
+      )
+    })
+
+    // Replaced previews are revoked; the one on screen stays alive.
+    expect(objectUrlFakes.revokeObjectUrl.mock.calls.flat()).toEqual([
+      'blob:preview/1',
+      'blob:preview/2',
+    ])
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('keeps the last rendered preview on screen while a newer render is pending', async () => {
+    render(<App />)
+
+    await waitFor(() => {
+      expect(getPreviewFrame()).toHaveAttribute(
+        'src',
+        expect.stringContaining('blob:preview/1#'),
+      )
+    })
+
+    let resolveRender: (blob: Blob) => void = () => undefined
+
+    mockedCreateResumePdfBlob.mockImplementationOnce(
+      () =>
+        new Promise<Blob>((resolve) => {
+          resolveRender = resolve
+        }),
     )
-    expect(previewParts.preview).toHaveAttribute(
-      'data-preview-layout',
-      'chinese-clean',
+
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'Fixture Person' },
+    })
+
+    await waitFor(() => {
+      expect(getPreviewStatus()).toBe('rendering')
+    })
+    expect(screen.getByText('Updating')).toBeInTheDocument()
+    expect(getPreviewFrame()).toHaveAttribute(
+      'src',
+      expect.stringContaining('blob:preview/1#'),
     )
-    expect(previewParts.preview).toHaveClass('font-sans', 'p-7')
-    expect(previewParts.header).toHaveClass('border-b', 'text-left')
-    expect(previewParts.skills).toHaveAttribute(
-      'data-preview-skills-layout',
-      'inline',
+    expect(objectUrlFakes.revokeObjectUrl).not.toHaveBeenCalled()
+
+    await act(async () => {
+      resolveRender(createFixturePdfBlob())
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(getPreviewFrame()).toHaveAttribute(
+        'src',
+        expect.stringContaining('blob:preview/2#'),
+      )
+    })
+    expect(objectUrlFakes.revokeObjectUrl.mock.calls.flat()).toEqual([
+      'blob:preview/1',
+    ])
+    expect(getPreviewStatus()).toBe('ready')
+  })
+
+  it('reports a failed preview render and keeps export available', async () => {
+    mockedCreateResumePdfBlob.mockRejectedValue(
+      new Error('Fixture preview failed.'),
     )
-    expect(previewParts.skills).toHaveTextContent(
-      'TypeScript / React / Privacy UX',
-    )
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'The PDF preview could not be rendered in this browser.',
+      )
+    })
+    expect(getPreviewStatus()).toBe('error')
+    expect(screen.getByText('Preview unavailable')).toBeInTheDocument()
+    expect(screen.queryByTitle('Resume PDF preview')).not.toBeInTheDocument()
+    expect(objectUrlFakes.createObjectUrl).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Export PDF' })).toBeEnabled()
   })
 
   it('renders the PDF export control beside local export tools', () => {
@@ -191,7 +295,7 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 
-  it('adds, updates, and removes a work item from the UI', () => {
+  it('adds, updates, and removes a work item from the UI', async () => {
     render(<App />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Work experience' }))
@@ -209,18 +313,23 @@ describe('App', () => {
       target: { value: 'Prepared safe client-only editor fixtures.' },
     })
 
-    expect(
-      screen.getByText('Fixture Builder, Example Fixture Studio'),
-    ).toBeInTheDocument()
-    expect(
-      screen.getAllByText('Prepared safe client-only editor fixtures.'),
-    ).toHaveLength(2)
+    expect(screen.getByLabelText('Work 2 highlight 1')).toHaveValue(
+      'Prepared safe client-only editor fixtures.',
+    )
+    await waitFor(() => {
+      expect(lastPreviewRender().work[1]).toMatchObject({
+        highlights: ['Prepared safe client-only editor fixtures.'],
+        organization: 'Example Fixture Studio',
+        role: 'Fixture Builder',
+      })
+    })
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove work item 2' }))
 
-    expect(
-      screen.queryByText('Fixture Builder, Example Fixture Studio'),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Work role 2')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(lastPreviewRender().work).toHaveLength(1)
+    })
   })
 
   it.each([
@@ -470,9 +579,11 @@ describe('App', () => {
         .getByText('Moved skill to position 1 of 3.')
         .closest('[aria-live="polite"]'),
     ).toBeInTheDocument()
-    expect(getPreviewParts().skills).toHaveTextContent(
-      'React | TypeScript | Privacy UX',
-    )
+    expect(useResumeStore.getState().resume.skills).toEqual([
+      'React',
+      'TypeScript',
+      'Privacy UX',
+    ])
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Move skill 1 of 3 down' }),
@@ -489,34 +600,36 @@ describe('App', () => {
   })
 
   it('exports the current resume as JSON without rendering a link', async () => {
-    const createObjectUrl = vi.fn<(blob: Blob) => string>(
-      () => 'blob:resume-json',
-    )
-    const revokeObjectUrl = vi.fn()
+    const { createObjectUrl, revokeObjectUrl } = objectUrlFakes
+    const clickedHrefs: string[] = []
 
-    Object.defineProperty(URL, 'createObjectURL', {
-      configurable: true,
-      value: createObjectUrl,
-    })
-    Object.defineProperty(URL, 'revokeObjectURL', {
-      configurable: true,
-      value: revokeObjectUrl,
-    })
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(
+      function recordClick(this: HTMLAnchorElement) {
+        clickedHrefs.push(this.href)
+      },
+    )
 
     render(<App />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Export JSON' }))
 
-    const firstCall = createObjectUrl.mock.calls[0]
+    const jsonExports = createObjectUrl.mock.calls.flatMap(([blob], index) => {
+      const result = createObjectUrl.mock.results[index]
 
-    if (firstCall === undefined) {
+      return blob.type === 'application/json' && result?.type === 'return'
+        ? [{ blob, objectUrl: result.value }]
+        : []
+    })
+    const jsonExport = jsonExports[0]
+
+    if (jsonExport === undefined) {
       throw new Error('Expected JSON export to create an object URL.')
     }
 
-    const exportedBlob = firstCall[0]
-    const exportedJson = JSON.parse(await exportedBlob.text()) as unknown
+    const exportedJson = JSON.parse(await jsonExport.blob.text()) as unknown
+    const exportedUrl = jsonExport.objectUrl
 
+    expect(jsonExports).toHaveLength(1)
     expect(exportedJson).toMatchObject({
       schemaVersion: 1,
       resume: {
@@ -525,17 +638,13 @@ describe('App', () => {
       },
     })
     expect(parseResumeJson(JSON.stringify(exportedJson)).success).toBe(true)
-    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:resume-json')
+    expect(clickedHrefs).toEqual([exportedUrl])
+    expect(revokeObjectUrl).toHaveBeenCalledWith(exportedUrl)
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
   it('blocks JSON and PDF export when the draft violates the resume schema', async () => {
-    const createObjectUrl = vi.fn<(blob: Blob) => string>()
-
-    Object.defineProperty(URL, 'createObjectURL', {
-      configurable: true,
-      value: createObjectUrl,
-    })
+    const { createObjectUrl } = objectUrlFakes
 
     render(<App />)
 
@@ -548,7 +657,16 @@ describe('App', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Export blocked: fix invalid resume fields first.',
     )
-    expect(createObjectUrl).not.toHaveBeenCalled()
+    expect(
+      createObjectUrl.mock.calls.filter(
+        ([blob]) => blob.type === 'application/json',
+      ),
+    ).toHaveLength(0)
+
+    // The preview keeps rendering the draft even while export is blocked.
+    await waitFor(() => {
+      expect(lastPreviewRender().basics.email).toBe('not-an-email')
+    })
 
     fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }))
 
@@ -662,17 +780,16 @@ describe('App', () => {
       ).toBeInTheDocument()
     })
 
-    expect(
-      screen.getByRole('heading', {
-        level: 3,
-        name: 'Imported Fixture Person',
-      }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'Imported Fixture Certificate, Imported Sample Institute',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('Imported Fixture Person')
+    expect(useResumeStore.getState().resume.education).toEqual(
+      importedResume.education,
+    )
+    await waitFor(() => {
+      expect(lastPreviewRender()).toMatchObject({
+        basics: { name: 'Imported Fixture Person' },
+        education: [{ school: 'Imported Sample Institute' }],
+      })
+    })
   })
 
   it('rejects invalid imported JSON without replacing the current resume', async () => {
@@ -694,9 +811,7 @@ describe('App', () => {
       )
     })
 
-    expect(
-      screen.getByRole('heading', { level: 3, name: 'Sample Candidate' }),
-    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('Sample Candidate')
   })
 
   it('rejects an oversized import before reading the file', async () => {
@@ -725,12 +840,10 @@ describe('App', () => {
     })
     expect(textSpy).not.toHaveBeenCalled()
     expect(importInput).toHaveValue('')
-    expect(
-      screen.getByRole('heading', { level: 3, name: 'Sample Candidate' }),
-    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('Sample Candidate')
   })
 
-  it('requires confirmation before clearing editable data', () => {
+  it('requires confirmation before clearing editable data', async () => {
     render(<App />)
 
     fireEvent.change(screen.getByLabelText('Name'), {
@@ -757,10 +870,13 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm clear' }))
 
     expect(screen.getByLabelText('Name')).toHaveValue('')
-    expect(
-      screen.getByRole('heading', { level: 3, name: 'Untitled resume' }),
-    ).toBeInTheDocument()
-    expect(screen.getByText('No work entries')).toBeInTheDocument()
+    expect(useResumeStore.getState().resume.work).toEqual([])
+    await waitFor(() => {
+      expect(lastPreviewRender()).toMatchObject({
+        basics: { name: '' },
+        work: [],
+      })
+    })
   })
 
   it('requires confirmation before resetting to fake defaults', () => {

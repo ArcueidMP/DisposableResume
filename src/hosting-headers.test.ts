@@ -69,7 +69,7 @@ describe('Cloudflare Pages security headers', () => {
       'font-src': "'none'",
       'form-action': "'none'",
       'frame-ancestors': "'none'",
-      'frame-src': "'none'",
+      'frame-src': 'blob:',
       'img-src': "'self' data: blob:",
       'manifest-src': "'self'",
       'media-src': "'none'",

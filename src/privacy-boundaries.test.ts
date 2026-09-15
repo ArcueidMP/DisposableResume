@@ -51,7 +51,7 @@ const architectureRules = [
   },
 ] as const
 
-type DownloadRecord = {
+type ObjectUrlRecord = {
   blob: Blob
   objectUrl: string
 }
@@ -288,7 +288,7 @@ describe('privacy boundaries', () => {
     const sessionStorageSet = vi.fn()
     const sessionStorageRemove = vi.fn()
     const sessionStorageClear = vi.fn()
-    const createdDownloads: DownloadRecord[] = []
+    const createdObjectUrls: ObjectUrlRecord[] = []
     const revokedObjectUrls: string[] = []
     const clickedDownloads: Array<{ download: string; href: string }> = []
 
@@ -319,9 +319,9 @@ describe('privacy boundaries', () => {
       URL,
       'createObjectURL',
       vi.fn((blob: Blob) => {
-        const objectUrl = `blob:privacy-boundary/${createdDownloads.length + 1}`
+        const objectUrl = `blob:privacy-boundary/${createdObjectUrls.length + 1}`
 
-        createdDownloads.push({ blob, objectUrl })
+        createdObjectUrls.push({ blob, objectUrl })
         return objectUrl
       }),
     )
@@ -354,7 +354,7 @@ describe('privacy boundaries', () => {
       },
     )
 
-    render(createElement(App))
+    const view = render(createElement(App))
 
     expect(screen.getByLabelText('Name')).toHaveAttribute('autocomplete', 'off')
     expect(screen.getByLabelText('Name')).toHaveAttribute('spellcheck', 'false')
@@ -387,9 +387,7 @@ describe('privacy boundaries', () => {
     })
 
     await waitFor(() => {
-      expect(
-        screen.getByRole('heading', { level: 3, name: importMarker }),
-      ).toBeInTheDocument()
+      expect(screen.getByLabelText('Name')).toHaveValue(importMarker)
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Export JSON' }))
@@ -401,12 +399,38 @@ describe('privacy boundaries', () => {
       },
       { timeout: 15_000 },
     )
+    // The live preview renders real PDFs of the marker data through the same
+    // pipeline; let it settle so its object URLs are all accounted for.
+    await waitFor(
+      () => {
+        expect(screen.getByTitle('Resume PDF preview')).toHaveAttribute(
+          'src',
+          expect.stringMatching(/^blob:privacy-boundary\/\d+#/),
+        )
+        expect(document.querySelector('[data-preview-status]')).toHaveAttribute(
+          'data-preview-status',
+          'ready',
+        )
+      },
+      { timeout: 15_000 },
+    )
 
-    const jsonDownloads = createdDownloads.filter(
+    const previewObjectUrl = screen
+      .getByTitle('Resume PDF preview')
+      .getAttribute('src')
+      ?.split('#')[0]
+    const clickedHrefs = clickedDownloads.map(({ href }) => href)
+    const jsonDownloads = createdObjectUrls.filter(
       ({ blob }) => blob.type === 'application/json',
     )
-    const pdfDownloads = createdDownloads.filter(
+    const pdfObjectUrls = createdObjectUrls.filter(
       ({ blob }) => blob.type === 'application/pdf',
+    )
+    const pdfDownloads = pdfObjectUrls.filter(({ objectUrl }) =>
+      clickedHrefs.includes(objectUrl),
+    )
+    const pdfPreviews = pdfObjectUrls.filter(
+      ({ objectUrl }) => !clickedHrefs.includes(objectUrl),
     )
 
     expect(jsonDownloads).toHaveLength(2)
@@ -418,16 +442,33 @@ describe('privacy boundaries', () => {
     })
     expect(pdfDownloads).toHaveLength(1)
     expect(await pdfDownloads[0]!.blob.slice(0, 5).text()).toBe('%PDF-')
+    expect(pdfPreviews.length).toBeGreaterThan(0)
+    expect(pdfPreviews.map(({ objectUrl }) => objectUrl)).toContain(
+      previewObjectUrl,
+    )
+
+    for (const preview of pdfPreviews) {
+      expect(await preview.blob.slice(0, 5).text()).toBe('%PDF-')
+    }
+
     expect(clickedDownloads.map(({ download }) => download)).toEqual([
       expect.stringMatching(/\.json$/),
       expect.stringMatching(/\.json$/),
       expect.stringMatching(/\.pdf$/),
     ])
-    expect(clickedDownloads.map(({ href }) => href)).toEqual(
-      createdDownloads.map(({ objectUrl }) => objectUrl),
-    )
-    expect(revokedObjectUrls).toEqual(
-      createdDownloads.map(({ objectUrl }) => objectUrl),
+    expect(clickedHrefs).toEqual([
+      ...jsonDownloads.map(({ objectUrl }) => objectUrl),
+      pdfDownloads[0]!.objectUrl,
+    ])
+    // Downloads are revoked right after the click. Preview URLs are revoked
+    // once replaced, and the one still on screen when the panel unmounts.
+    expect(revokedObjectUrls).toEqual(expect.arrayContaining(clickedHrefs))
+    expect(revokedObjectUrls).not.toContain(previewObjectUrl)
+
+    view.unmount()
+
+    expect([...revokedObjectUrls].sort()).toEqual(
+      createdObjectUrls.map(({ objectUrl }) => objectUrl).sort(),
     )
 
     expectOnlyLocalNetworkUrls('fetch', fetchCalls)

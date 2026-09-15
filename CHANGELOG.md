@@ -7,6 +7,24 @@ features continue to evolve before 1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- The live preview is now the real PDF. The preview panel renders the current
+  draft through the same browser-side template pipeline as Export PDF shortly
+  after each edit, keeps the previous page visible until the next render is
+  ready, and shows the result in the browser's built-in PDF viewer from a local
+  object URL. The earlier HTML approximation of the three templates, which
+  differed from the exported PDF in fonts, colors, spacing, and wording, was
+  removed.
+- The PDF renderer now loads when the preview first renders instead of on the
+  first export.
+
+### Security
+
+- The Content Security Policy allows same-origin `blob:` frames
+  (`frame-src blob:`) so the preview can display locally generated PDFs. No
+  remote source was added, and preview object URLs are revoked once replaced.
+
 ### Fixed
 
 - Chinese and other non-Latin-1 text in Classic ATS and Modern ATS PDF exports
